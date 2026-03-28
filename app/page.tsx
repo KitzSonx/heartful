@@ -1,65 +1,95 @@
-import Image from "next/image";
+import Link from 'next/link'
+import Mascot from '../components/ui/Mascot'
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div style={{
+      maxWidth: 480,
+      margin: '0 auto',
+      padding: '60px 24px 48px',
+      textAlign: 'center',
+      fontFamily: 'var(--font-body)',
+      animation: 'fadeUp 0.6s ease both',
+    }}>
+
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
+        <Mascot mood="great" size={160} />
+      </div>
+
+      <h1 style={{
+        fontFamily: 'var(--font-display)',
+        fontSize: 40, fontWeight: 400,
+        lineHeight: 1.1,
+        marginBottom: 12,
+      }}>
+        <span className="grad-text">Heartful</span>
+      </h1>
+
+      <p style={{
+        fontSize: 16,
+        color: 'var(--text-secondary)',
+        lineHeight: 1.7,
+        marginBottom: 40,
+        maxWidth: 340,
+        margin: '0 auto 40px',
+      }}>
+        ติดตามสุขภาพ <strong style={{ color: 'var(--teal-soft)' }}>กาย</strong>{' '}
+        <strong style={{ color: 'var(--purple-soft)' }}>ใจ</strong>{' '}
+        และ<strong style={{ color: 'var(--pink-soft)' }}>สังคม</strong> ทุกวัน
+        <br/>เพื่อหัวใจที่เต็มเปี่ยม ❤
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 300, margin: '0 auto' }}>
+        <Link href="/diary" style={{
+          display: 'block',
+          padding: '16px 24px',
+          borderRadius: 'var(--radius-lg)',
+          background: 'linear-gradient(135deg, #a78bfa, #ec4899)',
+          color: 'white',
+          fontWeight: 500,
+          fontSize: 15,
+          textDecoration: 'none',
+          boxShadow: '0 8px 32px rgba(167,139,250,0.35)',
+          transition: 'transform 0.2s, box-shadow 0.2s',
+        }}>
+          บันทึกวันนี้ 🌟
+        </Link>
+
+        <Link href="/teacher" style={{
+          display: 'block',
+          padding: '14px 24px',
+          borderRadius: 'var(--radius-lg)',
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          color: 'var(--text-secondary)',
+          fontSize: 14,
+          textDecoration: 'none',
+          transition: 'background 0.2s',
+        }}>
+          เข้าสู่ระบบครู
+        </Link>
+      </div>
+
+      {/* Features row */}
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 48 }}>
+        {[
+          { icon: '💪', label: 'ติดตามร่างกาย',  color: '#99f6e4' },
+          { icon: '🧘', label: 'ดูแลจิตใจ',      color: '#c4b5fd' },
+          { icon: '🤝', label: 'เชื่อมสังคม',    color: '#f9a8d4' },
+        ].map(f => (
+          <div key={f.label} style={{
+            flex: 1,
+            padding: '14px 8px',
+            background: 'rgba(255,255,255,0.04)',
+            border: `1px solid ${f.color}20`,
+            borderRadius: 16,
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 6 }}>{f.icon}</div>
+            <div style={{ fontSize: 11, color: f.color }}>{f.label}</div>
+          </div>
+        ))}
+      </div>
     </div>
-  );
+  )
 }
