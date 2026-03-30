@@ -9,6 +9,9 @@ import SectionHeader from '../../components/diary/SectionHeader'
 import SugarSlider from '../../components/diary/SugarSlider'
 import VeggiePicker from '../../components/diary/VeggiePicker'
 import WaterSlider from '../../components/diary/WaterSlider'
+import MoodChecker from '../../components/diary/MoodChecker'
+import SocialSlider from '../../components/diary/SocialSlider'
+import MeditationSlider from '../../components/diary/MeditationSlider'
 import { getCachedProfile, setCachedProfile, getTodayEntry, setTodayEntry, type CachedProfile } from '../../lib/localStorage'
 import { getOrCreateStudentProfile, getTodayDiary, saveDiaryEntry, getWeeklyData } from '../../lib/supabase-diary'
 
@@ -20,6 +23,9 @@ function ProfileForm({ onDone }: { onDone: (p: CachedProfile) => void }) {
   const [studentNumber, setStudentNumber] = useState('')
   const [error, setError] = useState('')
   const nickname = fullName.trim().split(' ')[0] || ''
+  const [mood, setMood] = useState('')
+  const [socialPts, setSocialPts] = useState(0)
+  const [meditationPts, setMeditationPts] = useState(0)
 
   const handleSubmit = () => {
     if (!fullName.trim() || !room.trim() || !studentNumber) { setError('กรุณากรอกข้อมูลให้ครบ'); return }
@@ -131,7 +137,9 @@ export default function DiaryPage() {
   const [submitted, setSubmitted] = useState(false)
   const [weekDays, setWeekDays] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
+  const [mood, setMood] = useState('')
+  const [socialPts, setSocialPts] = useState(0)
+  const [meditationPts, setMeditationPts] = useState(0)
   const [sleepPts, setSleepPts] = useState(0)
   const [sleepLevel, setSleepLevel] = useState(1)
   const [stepsPts, setStepsPts] = useState(0)
@@ -151,7 +159,7 @@ export default function DiaryPage() {
     return sum + (v ? (map[k] ?? 0) : 0)
   }, 0)
 
-  const totalPts = sleepPts + stepsPts + veggiePts + sugarPts + waterPts + checkPts + gratPts
+  const totalPts = sleepPts + stepsPts + veggiePts + sugarPts + waterPts + checkPts + gratPts + socialPts + meditationPts
   const pct = Math.round((totalPts / MAX_PTS) * 100)
   const mascotMood = pct === 0 ? 'sad' : pct < 40 ? 'neutral' : pct < 80 ? 'good' : 'great'
   const isComplete = pct >= 100

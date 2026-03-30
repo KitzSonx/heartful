@@ -1,26 +1,25 @@
 'use client'
 import { useState } from 'react'
 
-interface SugarSliderProps {
-  onChange?: (pts: number, level: number) => void
+interface SocialSliderProps {
+  onChange?: (pts: number, label: string) => void
 }
 
 const levels = [
-  { label: 'เยอะมาก / ดื่มน้ำหวาน',  pct: 100, pts: 0, color: '#f87171', emoji: '😵' },
-  { label: 'ค่อนข้างเยอะ',           pct: 75,  pts: 1, color: '#fb923c', emoji: '😬' },
-  { label: 'พอประมาณ',               pct: 50,  pts: 2, color: '#facc15', emoji: '😐' },
-  { label: 'นิดหน่อย',               pct: 25,  pts: 3, color: '#86efac', emoji: '😊' },
-  { label: 'ไม่กินหวานเลย',          pct: 0,   pts: 4, color: '#99f6e4', emoji: '🌟' },
-  
+  { label: 'มากกว่า 3 ชม.',  emoji: '😵', pts: 0, color: '#f87171' },
+  { label: '2–3 ชั่วโมง',    emoji: '😬', pts: 1, color: '#fb923c' },
+  { label: '1–2 ชั่วโมง',    emoji: '😐', pts: 2, color: '#facc15' },
+  { label: 'น้อยกว่า 1 ชม.', emoji: '😊', pts: 3, color: '#86efac' },
+  { label: 'ไม่เล่นเลย',     emoji: '🌟', pts: 3, color: '#99f6e4' },
 ]
 
-export default function SugarSlider({ onChange }: SugarSliderProps) {
+export default function SocialSlider({ onChange }: SocialSliderProps) {
   const [val, setVal] = useState<number | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Number(e.target.value)
     setVal(v)
-    onChange?.(levels[v].pts, levels[v].pct)
+    onChange?.(levels[v].pts, levels[v].label)
   }
 
   const current = val !== null ? levels[val] : null
@@ -28,13 +27,13 @@ export default function SugarSlider({ onChange }: SugarSliderProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
       <span style={{ fontSize: 11, color: 'var(--text-hint)', whiteSpace: 'nowrap', width: 56 }}>
-        🍬 ความหวาน
+        📱 โซเชียล
       </span>
       <div style={{ flex: 1, position: 'relative' }}>
         <div style={{
           position: 'absolute', top: '50%', left: 0, right: 0, height: 5,
           borderRadius: 99,
-          background: 'linear-gradient(to right, #99f6e4, #86efac, #facc15, #fb923c, #f87171)',
+          background: 'linear-gradient(to right, #f87171, #fb923c, #facc15, #86efac, #99f6e4)',
           transform: 'translateY(-50%)', opacity: 0.4, pointerEvents: 'none',
         }} />
         <input
@@ -44,10 +43,10 @@ export default function SugarSlider({ onChange }: SugarSliderProps) {
           style={{ width: '100%', appearance: 'none' as any, background: 'transparent', cursor: 'pointer', height: 22, position: 'relative' }}
         />
       </div>
-      <div style={{ minWidth: 88, textAlign: 'right' }}>
+      <div style={{ minWidth: 96, textAlign: 'right' }}>
         {current ? (
           <span style={{ fontSize: 11, fontWeight: 500, color: current.color, background: current.color + '18', padding: '3px 8px', borderRadius: 99, whiteSpace: 'nowrap' }}>
-            {current.emoji} {current.pct}% {current.pts > 0 ? `+${current.pts}pt` : '0pt'}
+            {current.emoji} {current.pts > 0 ? `+${current.pts}pt` : '0pt'}
           </span>
         ) : (
           <span style={{ fontSize: 11, color: 'var(--text-hint)' }}>เลื่อนเพื่อเลือก</span>
