@@ -6,11 +6,11 @@ interface SugarSliderProps {
 }
 
 const levels = [
-  { label: 'ไม่กินหวานเลย',          pct: 0,   pts: 4, color: '#99f6e4', emoji: '🌟' },
-  { label: 'นิดหน่อย',               pct: 25,  pts: 3, color: '#86efac', emoji: '😊' },
-  { label: 'พอประมาณ',               pct: 50,  pts: 2, color: '#facc15', emoji: '😐' },
-  { label: 'ค่อนข้างเยอะ',           pct: 75,  pts: 1, color: '#fb923c', emoji: '😬' },
   { label: 'เยอะมาก / ดื่มน้ำหวาน',  pct: 100, pts: 0, color: '#f87171', emoji: '😵' },
+  { label: 'ค่อนข้างเยอะ',           pct: 75,  pts: 1, color: '#fb923c', emoji: '😬' },
+  { label: 'พอประมาณ',               pct: 50,  pts: 2, color: '#facc15', emoji: '😐' },
+  { label: 'นิดหน่อย',               pct: 25,  pts: 3, color: '#86efac', emoji: '😊' },
+  { label: 'ไม่กินหวานเลย',          pct: 0,   pts: 4, color: '#99f6e4', emoji: '🌟' },
 ]
 
 export default function SugarSlider({ onChange }: SugarSliderProps) {
@@ -33,7 +33,7 @@ export default function SugarSlider({ onChange }: SugarSliderProps) {
         <div style={{
           position: 'absolute', top: '50%', left: 0, right: 0, height: 5,
           borderRadius: 99,
-          background: 'linear-gradient(to right, #99f6e4, #86efac, #facc15, #fb923c, #f87171)',
+          background: 'linear-gradient(to right, #f87171, #fb923c, #facc15, #86efac, #99f6e4)',
           transform: 'translateY(-50%)', opacity: 0.4, pointerEvents: 'none',
         }} />
         <input
