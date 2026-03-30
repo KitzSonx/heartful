@@ -43,10 +43,10 @@ export default function SocialSlider({ onChange }: SocialSliderProps) {
           style={{ width: '100%', appearance: 'none' as any, background: 'transparent', cursor: 'pointer', height: 22, position: 'relative' }}
         />
       </div>
-      <div style={{ minWidth: 96, textAlign: 'right' }}>
+      <div style={{ minWidth: 110, textAlign: 'right' }}>
         {current ? (
           <span style={{ fontSize: 11, fontWeight: 500, color: current.color, background: current.color + '18', padding: '3px 8px', borderRadius: 99, whiteSpace: 'nowrap' }}>
-            {current.emoji} {current.pts > 0 ? `+${current.pts}pt` : '0pt'}
+            {current.emoji} {current.label} {current.pts > 0 ? `+${current.pts}pt` : '0pt'}
           </span>
         ) : (
           <span style={{ fontSize: 11, color: 'var(--text-hint)' }}>เลื่อนเพื่อเลือก</span>

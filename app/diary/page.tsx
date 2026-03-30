@@ -226,31 +226,36 @@ export default function DiaryPage() {
   }
 
   const handleSubmit = async () => {
-    if (dbProfile) {
-      await saveDiaryEntry(dbProfile.id, {
-        sleep_level: sleepLevel, sleep_pts: sleepPts,
-        steps_level: stepsLevel, steps_pts: stepsPts,
-        ate_vegetables: veggieMeals > 0, veggie_meals: veggieMeals,
-        sugar_level: sugarLevel, sugar_pts: sugarPts,
-        drank_water: waterGlasses >= 4, water_glasses: waterGlasses, water_pts: waterPts,
-        body_pts: sleepPts + stepsPts + veggiePts + sugarPts + waterPts,
-        observed_emotions: checks.observed_emotions,
-        limited_social_media: false,
-        meditated: false,
-        gratitude_text: gratitude,
-        mind_pts: (checks.observed_emotions ? 2 : 0) + gratPts + socialPts + meditationPts,
-        time_with_loved: checks.time_with_loved,
-        helped_others: checks.helped_others,
-        tidied_space: checks.tidied_space,
-        expressed_opinion: checks.expressed_opinion,
-        social_pts: (checks.time_with_loved ? 2 : 0) + (checks.helped_others ? 2 : 0) + (checks.tidied_space ? 1 : 0) + (checks.expressed_opinion ? 1 : 0),
-        total_pts: totalPts,
-        is_complete: isComplete,
-      })
-      setWeekDays(await getWeeklyData(dbProfile.id))
-    }
-    setSubmitted(true)
+  if (dbProfile) {
+    await saveDiaryEntry(dbProfile.id, {
+      sleep_level: sleepLevel, sleep_pts: sleepPts,
+      steps_level: stepsLevel, steps_pts: stepsPts,
+      ate_vegetables: veggieMeals > 0, veggie_meals: veggieMeals,
+      sugar_level: sugarLevel, sugar_pts: sugarPts,
+      drank_water: waterGlasses >= 4, water_glasses: waterGlasses, water_pts: waterPts,
+      body_pts: sleepPts + stepsPts + veggiePts + sugarPts + waterPts,
+      observed_emotions: checks.observed_emotions,
+      limited_social_media: false,
+      meditated: false,
+      gratitude_text: gratitude,
+      mind_pts: (checks.observed_emotions ? 2 : 0) + gratPts + socialPts + meditationPts,
+      time_with_loved: checks.time_with_loved,
+      helped_others: checks.helped_others,
+      tidied_space: checks.tidied_space,
+      expressed_opinion: checks.expressed_opinion,
+      social_pts: (checks.time_with_loved ? 2 : 0) + (checks.helped_others ? 2 : 0) + (checks.tidied_space ? 1 : 0) + (checks.expressed_opinion ? 1 : 0),
+      total_pts: totalPts,
+      is_complete: isComplete,
+    })
+
+    // โหลด profile ใหม่เพื่อให้ได้ streak ล่าสุด
+    const updatedProfile = await getOrCreateStudentProfile(profile!.fullName, profile!.room, profile!.studentNumber)
+    if (updatedProfile) setDbProfile(updatedProfile)
+
+    setWeekDays(await getWeeklyData(dbProfile.id))
   }
+  setSubmitted(true)
+}
 
   if (loading) return (
     <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--text-hint)', fontFamily: 'var(--font-body)' }}>
