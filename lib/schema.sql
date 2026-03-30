@@ -137,3 +137,14 @@ group by p.id, p.full_name, p.room, p.student_number
 having max(de.date) < current_date - interval '3 days'
    or max(de.date) is null
 order by days_since_last_entry desc nulls first;
+
+-- ======================================
+-- MIGRATION: เพิ่ม column ใหม่สำหรับ
+-- sugar, veggie, water แบบ detailed
+-- ======================================
+alter table diary_entries
+  add column if not exists veggie_meals   int default 0,
+  add column if not exists sugar_level    int default 50,
+  add column if not exists sugar_pts      int default 0,
+  add column if not exists water_glasses  int default 0,
+  add column if not exists water_pts      int default 0;
