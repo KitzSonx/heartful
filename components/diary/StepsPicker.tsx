@@ -2,7 +2,7 @@
 import { useState } from 'react'
 
 interface StepsPickerProps {
-  onChange?: (pts: number) => void
+  onChange?: (pts: number, level?: number) => void
 }
 
 const options = [

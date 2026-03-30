@@ -2,7 +2,7 @@
 import { useState } from 'react'
 
 interface SleepSliderProps {
-  onChange?: (pts: number, label: string) => void
+  onChange?: (pts: number, label: string, level?: number) => void
 }
 
 const levels = [
