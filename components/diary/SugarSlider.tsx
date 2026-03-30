@@ -6,12 +6,11 @@ interface SugarSliderProps {
 }
 
 const levels = [
-  { label: 'เยอะมาก / ดื่มน้ำหวาน',  pct: 100, pts: 0, color: '#f87171', emoji: '😵' },
-  { label: 'ค่อนข้างเยอะ',           pct: 75,  pts: 1, color: '#fb923c', emoji: '😬' },
-  { label: 'พอประมาณ',               pct: 50,  pts: 2, color: '#facc15', emoji: '😐' },
-  { label: 'นิดหน่อย',               pct: 25,  pts: 3, color: '#86efac', emoji: '😊' },
   { label: 'ไม่กินหวานเลย',          pct: 0,   pts: 4, color: '#99f6e4', emoji: '🌟' },
-  
+  { label: 'นิดหน่อย',               pct: 25,  pts: 3, color: '#86efac', emoji: '😊' },
+  { label: 'พอประมาณ',               pct: 50,  pts: 2, color: '#facc15', emoji: '😐' },
+  { label: 'ค่อนข้างเยอะ',           pct: 75,  pts: 1, color: '#fb923c', emoji: '😬' },
+  { label: 'เยอะมาก / ดื่มน้ำหวาน',  pct: 100, pts: 0, color: '#f87171', emoji: '😵' },
 ]
 
 export default function SugarSlider({ onChange }: SugarSliderProps) {
