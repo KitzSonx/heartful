@@ -10,7 +10,7 @@ import SugarSlider from '../../components/diary/SugarSlider'
 import VeggiePicker from '../../components/diary/VeggiePicker'
 import WaterSlider from '../../components/diary/WaterSlider'
 import { getCachedProfile, setCachedProfile, getTodayEntry, setTodayEntry, type CachedProfile } from '../../lib/localStorage'
-import { getStudentProfile, getTodayDiary, saveDiaryEntry, getWeeklyData } from '../../lib/supabase-diary'
+import { getOrCreateStudentProfile, getTodayDiary, saveDiaryEntry, getWeeklyData } from '../../lib/supabase-diary'
 
 const MAX_PTS = 30
 
@@ -165,15 +165,15 @@ export default function DiaryPage() {
   async function loadSupabase(p: CachedProfile) {
     setLoading(true)
     try {
-      const dbP = await getStudentProfile(p.room, p.studentNumber)
-      setDbProfile(dbP)
-      if (dbP) {
+        const dbP = await getOrCreateStudentProfile(p.fullName, p.room, p.studentNumber)
+        setDbProfile(dbP)
+        if (dbP) {
         setTodayDbEntry(await getTodayDiary(dbP.id))
         setWeekDays(await getWeeklyData(dbP.id))
-      }
+        }
     } catch (e) { console.error(e) }
     setLoading(false)
-  }
+    }
 
   const handleSubmit = async () => {
     if (dbProfile) {
