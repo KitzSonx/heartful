@@ -1,3 +1,4 @@
+// SectionHeader.tsx - หัวข้อส่วนในหน้า Diary พร้อมแสดงคะแนนและไอคอนตามหมวดหมู่
 interface SectionHeaderProps {
   category: 'body' | 'mind' | 'social'
   title: string

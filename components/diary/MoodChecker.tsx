@@ -1,3 +1,4 @@
+// MoodChecker.tsx - ตัวเลือกอารมณ์ประจำวันในหน้า Diary
 'use client'
 import { useState } from 'react'
 

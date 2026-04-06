@@ -1,3 +1,4 @@
+// supabase-diary.ts - ฟังก์ชันสำหรับจัดการข้อมูลโปรไฟล์และบันทึกใน Supabase
 import { supabase } from './supabase'
 
 // ดึงหรือสร้าง profile อัตโนมัติถ้าไม่มี

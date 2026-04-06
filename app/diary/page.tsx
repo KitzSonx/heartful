@@ -1,3 +1,4 @@
+// diary page - บันทึกความรักตัวเองประจำวัน
 'use client'
 import { useState, useEffect } from 'react'
 import Mascot from '../../components/ui/Mascot'
@@ -14,6 +15,7 @@ import SocialSlider from '../../components/diary/SocialSlider'
 import MeditationSlider from '../../components/diary/MeditationSlider'
 import { getCachedProfile, setCachedProfile, type CachedProfile } from '../../lib/localStorage'
 import { getOrCreateStudentProfile, getTodayDiary, saveDiaryEntry, getWeeklyData } from '../../lib/supabase-diary'
+import StreakResult from '../../components/diary/StreakResult'
 
 const MAX_PTS = 36
 
@@ -276,9 +278,13 @@ export default function DiaryPage() {
   }
 
   if (submitted) return (
-    <MissionComplete
-      pts={totalPts} profile={profile}
-      streak={dbProfile?.streak ?? 0} weekDays={weekDays}
+    <StreakResult
+      pts={totalPts}
+      maxPts={MAX_PTS}
+      profile={profile}
+      streak={dbProfile?.streak ?? 0}
+      weekDays={weekDays}
+      isComplete={isComplete}
     />
   )
 

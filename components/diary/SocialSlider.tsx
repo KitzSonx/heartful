@@ -1,3 +1,7 @@
+
+// SocialSlider.tsx - สไลเดอร์สำหรับบันทึกเวลาใช้โซเชียลในหน้า Diary
+
+
 'use client'
 import { useState } from 'react'
 

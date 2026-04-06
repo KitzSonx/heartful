@@ -1,3 +1,6 @@
+
+// HeartMeter.tsx - แสดงระดับความสุขในรูปแบบหัวใจ
+
 'use client'
 
 interface HeartMeterProps {

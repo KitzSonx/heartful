@@ -1,7 +1,8 @@
+-- schema.sql - SQL Schema สำหรับ Supabase
 -- ======================================
 -- HEARTFUL — SQL Schema (Supabase)
 -- วางใน Supabase SQL Editor แล้วกด Run
--- ======================================
+-- ==================================
 
 -- 1) Profiles (ต่อจาก auth.users)
 create table if not exists profiles (

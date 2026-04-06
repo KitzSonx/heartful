@@ -1,3 +1,6 @@
+
+// SleepSlider.tsx - สไลเดอร์สำหรับบันทึกเวลาหลับในหน้า Diary
+
 'use client'
 import { useState } from 'react'
 

@@ -1,3 +1,4 @@
+// home page - หน้าแรกต้อนรับผู้ใช้ด้วยภาพรวมและลิงก์ไปยังฟีเจอร์ต่างๆ
 import Link from 'next/link'
 import Mascot from '../components/ui/Mascot'
 

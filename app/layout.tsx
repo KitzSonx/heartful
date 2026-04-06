@@ -1,3 +1,4 @@
+// layout.tsx - ตั้งค่าฟอนต์ Itim และโครงสร้างพื้นฐานของแอป
 import type { Metadata } from 'next'
 import { Itim } from 'next/font/google' // 1. เปลี่ยนเป็นนำเข้าฟอนต์ Itim
 import '../styles/globals.css'

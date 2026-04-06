@@ -1,3 +1,4 @@
+// teacher dashboard - สำหรับครูแนะแนวดูภาพรวมและรายงานต่างๆ
 'use client'
 import { useState, useEffect } from 'react'
 import { getRoomSummaryToday, getAtRiskStudents, getBehaviorStats, getDailyStats } from '../../lib/supabase-teacher'

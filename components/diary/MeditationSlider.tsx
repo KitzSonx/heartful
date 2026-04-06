@@ -1,3 +1,4 @@
+// MeditationSlider.tsx - สไลเดอร์สำหรับบันทึกเวลาทำสมาธิในหน้า Diary
 'use client'
 import { useState } from 'react'
 

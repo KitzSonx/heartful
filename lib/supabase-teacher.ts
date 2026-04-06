@@ -1,3 +1,4 @@
+// supabase-teacher.ts - ฟังก์ชันสำหรับดึงข้อมูลสรุปห้องเรียนและนักเรียนที่เสี่ยงใน Supabase (สำหรับหน้า Teacher Dashboard)
 import { supabase } from './supabase'
 
 export async function getRoomSummaryToday() {

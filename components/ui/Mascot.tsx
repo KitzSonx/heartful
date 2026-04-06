@@ -1,3 +1,7 @@
+
+// Mascot.tsx - ตัวละครแสดงอารมณ์ในหน้า Diary
+
+
 'use client'
 import { useState } from 'react'
 

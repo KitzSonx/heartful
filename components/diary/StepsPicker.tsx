@@ -1,3 +1,6 @@
+
+// StepsPicker.tsx - ตัวเลือกจำนวนก้าวประจำวันในหน้า Diary
+
 'use client'
 import { useState } from 'react'
 

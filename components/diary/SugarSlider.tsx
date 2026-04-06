@@ -1,3 +1,7 @@
+
+// SugarSlider.tsx - สไลเดอร์สำหรับบันทึกปริมาณน้ำหวานในหน้า Diary
+
+
 'use client'
 import { useState } from 'react'
 

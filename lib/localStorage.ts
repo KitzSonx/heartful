@@ -1,3 +1,4 @@
+// localStorage.ts - ฟังก์ชันสำหรับจัดการข้อมูลโปรไฟล์ใน localStorage
 export interface CachedProfile {
   fullName: string
   nickname: string
