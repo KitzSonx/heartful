@@ -1,18 +1,16 @@
-
 // StepsPicker.tsx - ตัวเลือกจำนวนก้าวประจำวันในหน้า Diary
-
 'use client'
 import { useState } from 'react'
 
 interface StepsPickerProps {
-  onChange?: (pts: number, level?: number) => void
+  onChange?: (pts: number, level: number) => void
 }
 
 const options = [
-  { label: 'น้อยกว่า\n3,000',   emoji: '🐢', pts: 1 },
-  { label: '3,000–\n6,000',     emoji: '🚶', pts: 2 },
-  { label: '6,000–\n10,000',    emoji: '🏃', pts: 3 },
-  { label: '10,000+',            emoji: '⚡', pts: 4 },
+  { label: 'น้อยกว่า\n3,000',   emoji: '🐢', pts: 1, level: 1 },
+  { label: '3,000–\n6,000',     emoji: '🚶', pts: 2, level: 2 },
+  { label: '6,000–\n10,000',    emoji: '🏃', pts: 3, level: 3 },
+  { label: '10,000+',            emoji: '⚡', pts: 4, level: 4 },
 ]
 
 export default function StepsPicker({ onChange }: StepsPickerProps) {
@@ -20,7 +18,7 @@ export default function StepsPicker({ onChange }: StepsPickerProps) {
 
   const pick = (i: number) => {
     setSel(i)
-    onChange?.(options[i].pts)
+    onChange?.(options[i].pts, options[i].level)
   }
 
   return (
@@ -28,6 +26,7 @@ export default function StepsPicker({ onChange }: StepsPickerProps) {
       {options.map((o, i) => (
         <button
           key={i}
+          type="button"
           onClick={() => pick(i)}
           style={{
             padding: '12px 6px',

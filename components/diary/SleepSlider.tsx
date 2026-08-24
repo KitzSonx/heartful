@@ -1,11 +1,9 @@
-
 // SleepSlider.tsx - สไลเดอร์สำหรับบันทึกเวลาหลับในหน้า Diary
-
 'use client'
 import { useState } from 'react'
 
 interface SleepSliderProps {
-  onChange?: (pts: number, label: string, level?: number) => void
+  onChange?: (pts: number, label: string, level: number) => void
 }
 
 const levels = [
@@ -24,7 +22,7 @@ export default function SleepSlider({ onChange }: SleepSliderProps) {
     const v = Number(e.target.value)
     setVal(v)
     const lv = levels[v - 1]
-    onChange?.(lv.pts, lv.label)
+    onChange?.(lv.pts, lv.label, v)
   }
 
   return (
@@ -38,83 +36,98 @@ export default function SleepSlider({ onChange }: SleepSliderProps) {
         fontFamily: 'var(--font-body)',
       }}>
         <span>น้อยมาก</span>
-        <span>เพียงพอ 🌟</span>
+        <span>นอนเต็มอิ่ม</span>
       </div>
 
-      <div style={{ position: 'relative', padding: '0 4px' }}>
-        {/* Gradient track background */}
+      {/* Track container */}
+      <div style={{ position: 'relative', marginBottom: 14 }}>
         <div style={{
           position: 'absolute',
           top: '50%',
-          left: 4, right: 4,
+          left: 0,
+          right: 0,
           height: 6,
           borderRadius: 99,
           background: 'linear-gradient(to right, #f87171, #fb923c, #facc15, #86efac, #99f6e4)',
           transform: 'translateY(-50%)',
           opacity: 0.35,
           pointerEvents: 'none',
-        }}/>
-
+        }} />
         <input
-          type="range" min="1" max="5" step="1"
-          value={val || 1}
+          type="range"
+          min="1"
+          max="5"
+          step="1"
+          value={val || 3}
           onChange={handleChange}
           style={{
             width: '100%',
             appearance: 'none',
+            WebkitAppearance: 'none',
             background: 'transparent',
             cursor: 'pointer',
             height: 24,
             position: 'relative',
+            zIndex: 1,
           }}
         />
       </div>
 
-      {/* Result display */}
+      {/* Selected badge */}
       <div style={{
-        marginTop: 10,
-        minHeight: 36,
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
-        padding: '8px 12px',
-        borderRadius: 10,
-        background: current ? 'rgba(255,255,255,0.05)' : 'transparent',
-        transition: 'all 0.3s',
+        justifyContent: 'space-between',
+        minHeight: 28,
       }}>
         {current ? (
           <>
-            <span style={{ fontSize: 22 }}>{current.emoji}</span>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1 }}>{current.label}</span>
             <span style={{
-              fontSize: 12, fontWeight: 500,
+              fontSize: 12,
+              fontWeight: 500,
               color: current.color,
-              background: current.color + '18',
-              padding: '3px 9px', borderRadius: 99,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontFamily: 'var(--font-body)',
+            }}>
+              <span style={{ fontSize: 16 }}>{current.emoji}</span>
+              {current.label}
+            </span>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: current.color,
+              background: `${current.color}18`,
+              border: `1px solid ${current.color}35`,
+              padding: '2px 8px',
+              borderRadius: 99,
+              fontFamily: 'var(--font-body)',
             }}>
               +{current.pts} pt
             </span>
           </>
         ) : (
-          <span style={{ fontSize: 12, color: 'var(--text-hint)' }}>เลือกชั่วโมงที่คุณนอนหลับ...</span>
+          <span style={{ fontSize: 12, color: 'var(--text-hint)', fontFamily: 'var(--font-body)' }}>
+            เลื่อนเพื่อเลือก
+          </span>
         )}
       </div>
 
-      {/* Range input styles */}
       <style>{`
         input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none;
           appearance: none;
-          width: 22px; height: 22px;
+          width: 22px;
+          height: 22px;
           border-radius: 50%;
           background: white;
-          box-shadow: 0 0 12px rgba(167,139,250,0.6), 0 2px 6px rgba(0,0,0,0.4);
+          box-shadow: 0 0 12px rgba(167,139,250,0.6), 0 2px 6px rgba(0,0,0,0.3);
           cursor: pointer;
           transition: transform 0.15s;
         }
-        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
-        input[type=range]::-webkit-slider-runnable-track {
-          height: 6px; border-radius: 99px;
-          background: rgba(255,255,255,0.08);
+        input[type=range]::-webkit-slider-thumb:hover {
+          transform: scale(1.15);
         }
       `}</style>
     </div>

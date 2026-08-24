@@ -13,17 +13,18 @@ const itim = Itim({
 export const metadata: Metadata = {
   title: 'Heartful — รักตัวเองทุกวัน',
   description: 'ติดตามสุขภาพกาย ใจ และสังคม เพื่อชีวิตที่ดีขึ้นทุกวัน',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="th">
-      {/* 3. ใส่ className ของฟอนต์ Itim ที่ body */}
       <body className={itim.className}>
-        <div className="ambient-orb orb-1" />
-        <div className="ambient-orb orb-2" />
-        <div className="ambient-orb orb-3" />
-        <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           {children}
         </div>
       </body>

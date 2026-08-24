@@ -1,27 +1,27 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import type { CachedProfile } from '../../lib/localStorage'
+import { getBangkokDateString } from '../../lib/date'
+import type { WeekDayEntry } from '../../types/database'
 
 interface StreakResultProps {
   pts: number
   maxPts: number
   profile: CachedProfile
   streak: number
-  weekDays: { date: string; entry: any }[]
+  weekDays: WeekDayEntry[]
   isComplete: boolean
 }
 
 // Particle สำหรับหัวใจและดาว
-function Particle({ delay, x }: { delay: number; x: number }) {
-  const emojis = ['❤️', '💜', '✨', '🌟', '💫']
-  const emoji = emojis[Math.floor(Math.random() * emojis.length)]
+function Particle({ delay, x, emoji }: { delay: number; x: number; emoji: string }) {
   return (
     <span style={{
       position: 'absolute',
       left: `${x}%`,
       bottom: '-10%',
-      fontSize: Math.random() * 16 + 12,
-      animation: `floatUp ${Math.random() * 2 + 2.5}s ease-out forwards`,
+      fontSize: 18,
+      animation: `floatUp 3.2s ease-out forwards`,
       animationDelay: `${delay}s`,
       opacity: 0,
       pointerEvents: 'none',
@@ -54,49 +54,40 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
   const [heartFill, setHeartFill] = useState(0)
   const [showParticles, setShowParticles] = useState(false)
   const [showShare, setShowShare] = useState(false)
-  const [isIgniting, setIsIgniting] = useState(false) // State สำหรับจังหวะจุดระเบิด
+  const [isIgniting, setIsIgniting] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getBangkokDateString()
   const dayLabels = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 
-  // สร้าง Config สำหรับสะเก็ดไฟล่วงหน้า
-  const sparksConfig = useRef(Array.from({ length: 15 }, () => ({
-    left: Math.random() * 100,
-    size: Math.random() * 6 + 2,
-    delay: Math.random() * 2,
-    duration: Math.random() * 1.5 + 1
-  }))).current
+  // สร้าง Config สำหรับสะเก็ดไฟและ Particle ล่วงหน้าแบบ Pure
+  const sparksConfig = useMemo(() => {
+    const arr = [
+      { left: 12, size: 4, delay: 0.1, duration: 1.2 },
+      { left: 28, size: 6, delay: 0.4, duration: 1.6 },
+      { left: 45, size: 5, delay: 0.2, duration: 1.4 },
+      { left: 62, size: 7, delay: 0.6, duration: 1.8 },
+      { left: 78, size: 4, delay: 0.3, duration: 1.3 },
+      { left: 88, size: 5, delay: 0.7, duration: 1.5 },
+      { left: 20, size: 3, delay: 0.9, duration: 1.1 },
+      { left: 50, size: 6, delay: 1.1, duration: 1.7 },
+      { left: 70, size: 4, delay: 0.8, duration: 1.4 },
+      { left: 35, size: 5, delay: 1.3, duration: 1.5 },
+      { left: 58, size: 3, delay: 0.5, duration: 1.2 },
+      { left: 82, size: 6, delay: 1.0, duration: 1.6 },
+    ]
+    return arr
+  }, [])
 
-  const particles = Array.from({ length: 18 }, (_, i) => ({
-    delay: i * 0.12,
-    x: Math.random() * 90 + 5,
-  }))
+  const particles = useMemo(() => {
+    const emojis = ['❤️', '💜', '✨', '🌟', '💫']
+    return Array.from({ length: 18 }, (_, i) => ({
+      delay: i * 0.12,
+      x: ((i * 17) % 90) + 5,
+      emoji: emojis[i % emojis.length],
+    }))
+  }, [])
 
-  useEffect(() => {
-    // phase 1: fade in ชื่อ
-    const t1 = setTimeout(() => setPhase(1), 300)
-    
-    // phase 2: 🔥 จุดระเบิดไฟ STREAK!
-    const t2 = setTimeout(() => {
-      setPhase(2)
-      setIsIgniting(true)
-      // ปิดเอฟเฟกต์ระเบิดเบื้องต้นหลังผ่านไป 0.8 วิ ให้เหลือแค่ไฟลุกปกติ
-      setTimeout(() => setIsIgniting(false), 800)
-    }, 900)
-
-    // phase 3: หัวใจเติม
-    const t3 = setTimeout(() => { setPhase(3); animateHeart() }, 2000)
-    // phase 4: week dots
-    const t4 = setTimeout(() => setPhase(4), 2800)
-    
-    if (isComplete) setTimeout(() => setShowParticles(true), 2400)
-    setTimeout(() => setShowShare(true), 3600)
-
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4) }
-  }, [isComplete])
-
-  function animateHeart() {
-    let start = 0
+  const animateHeart = useCallback(() => {
     const target = pct
     const duration = 1200
     const startTime = performance.now()
@@ -108,12 +99,52 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
       if (progress < 1) requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
-  }
+  }, [pct])
+
+  useEffect(() => {
+    // phase 1: fade in ชื่อ
+    const t1 = setTimeout(() => setPhase(1), 300)
+
+    // phase 2: 🔥 จุดระเบิดไฟ STREAK!
+    const t2 = setTimeout(() => {
+      setPhase(2)
+      setIsIgniting(true)
+      setTimeout(() => setIsIgniting(false), 800)
+    }, 900)
+
+    // phase 3: หัวใจเติม
+    const t3 = setTimeout(() => {
+      setPhase(3)
+      animateHeart()
+    }, 2000)
+
+    // phase 4: week dots
+    const t4 = setTimeout(() => setPhase(4), 2800)
+
+    let t5: NodeJS.Timeout | undefined
+    if (isComplete) {
+      t5 = setTimeout(() => setShowParticles(true), 2400)
+    }
+    const t6 = setTimeout(() => setShowShare(true), 3400)
+
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+      clearTimeout(t4)
+      if (t5) clearTimeout(t5)
+      clearTimeout(t6)
+    }
+  }, [isComplete, animateHeart])
 
   const handleShare = async () => {
     const text = `💜 วันนี้ฉันดูแลตัวเองได้ ${pts}/${maxPts} คะแนน\n🔥 ทำต่อเนื่อง ${streak} วันแล้ว!\n${isComplete ? '❤️ หัวใจเต็มดวง Mission Complete!' : `หัวใจ ${pct}%`}\n\n#Heartful #รักตัวเอง`
     if (navigator.share) {
-      await navigator.share({ title: 'Heartful — รักตัวเองวันนี้', text })
+      try {
+        await navigator.share({ title: 'Heartful — รักตัวเองวันนี้', text })
+      } catch {
+        // User cancelled share
+      }
     } else {
       await navigator.clipboard.writeText(text)
       alert('คัดลอกข้อความแล้ว! เอาไปแปะได้เลย 💜')
@@ -142,7 +173,7 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
 
       {showParticles && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-          {particles.map((p, i) => <Particle key={i} delay={p.delay} x={p.x} />)}
+          {particles.map((p, i) => <Particle key={i} delay={p.delay} x={p.x} emoji={p.emoji} />)}
         </div>
       )}
 
@@ -166,13 +197,15 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
           }}>
             {isComplete ? 'รักตัวเองสำเร็จ!' : 'บันทึกแล้ววันนี้'}
           </h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+            {profile.nickname} · {profile.room} · เลขที่ {profile.studentNumber}
+          </p>
         </div>
 
-        {/* 🔥 THE ULTIMATE STREAK FIRE 🔥 */}
+        {/* 🔥 STREAK FIRE 🔥 */}
         <div style={{
           textAlign: 'center', marginBottom: 32, position: 'relative',
           opacity: phase >= 2 ? 1 : 0,
-          // ถ้ากำลังจุดระเบิด (isIgniting) ให้กระเด้งแรงๆ
           transform: phase >= 2 ? (isIgniting ? 'scale(1.15) translateY(-5px)' : 'scale(1) translateY(0)') : 'scale(0.5) translateY(40px)',
           transition: 'opacity 0.6s, transform 0.6s cubic-bezier(.34,1.56,.64,1)',
         }}>
@@ -191,7 +224,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
             display: 'flex', justifyContent: 'center', alignItems: 'flex-end', zIndex: 1,
             marginBottom: 8
           }}>
-            
             {/* สะเก็ดไฟ (Sparks) */}
             <div className="sparks-container">
               {sparksConfig.map((s, i) => (
@@ -205,7 +237,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
             <div className="flame-layer flame-core"></div>
             <div className="flame-layer flame-inner-white"></div>
             
-            {/* ฐานกองไฟ (เพื่อให้ดูมีมิติไม่ลอย) */}
             <div className="fire-base"></div>
           </div>
 
@@ -270,7 +301,7 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
         {/* Week dots */}
         <div style={{
           opacity: phase >= 4 ? 1 : 0, transform: phase >= 4 ? 'translateY(0)' : 'translateY(8px)',
-          transition: 'opacity 0.5s, transform 0.5s', marginBottom: 8,
+          transition: 'opacity 0.5s, transform 0.5s', marginBottom: showShare ? 16 : 8,
         }}>
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
             {weekDays.map((d, i) => {
@@ -294,10 +325,36 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
             })}
           </div>
         </div>
+
+        {/* Share Button */}
+        {showShare && (
+          <div style={{ animation: 'fadeUp 0.4s ease both' }}>
+            <button
+              onClick={handleShare}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: 14,
+                border: '1px solid rgba(167,139,250,0.3)',
+                background: 'linear-gradient(135deg, rgba(167,139,250,0.2), rgba(244,114,182,0.2))',
+                color: 'white',
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-body)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              <span>📤</span> แชร์ความสำเร็จวันนี้
+            </button>
+          </div>
+        )}
       </div>
 
       <style>{`
-        /* --- CSS ส่วนโครงสร้างและจิปาถะ --- */
         @keyframes floatUp {
           0%   { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
           100% { transform: translateY(-120vh) scale(0.5) rotate(45deg); opacity: 0; }
@@ -307,7 +364,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
           50%       { transform: scale(1.07); }
         }
 
-        /* --- THE ULTIMATE FIRE CSS --- */
         .fire-ambient-glow {
           position: absolute; top: 40%; left: 50%;
           width: 200px; height: 200px; 
@@ -343,7 +399,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
           transform: rotate(-45deg);
         }
 
-        /* เลเยอร์ 1: ไฟพื้นหลังสีแดงเข้ม (สูงและกว้างสุด โบกสะบัดช้าๆ) */
         .flame-back {
           width: 80px; height: 80px;
           background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
@@ -352,7 +407,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
           bottom: 2px;
         }
 
-        /* เลเยอร์ 2: ไฟหลักสีส้ม (สว่างและพริ้ว) */
         .flame-main {
           width: 60px; height: 60px;
           background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
@@ -361,7 +415,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
           bottom: 6px;
         }
 
-        /* เลเยอร์ 3: แกนไฟสีเหลือง (ความร้อนสูง สั่นเร็ว) */
         .flame-core {
           width: 35px; height: 35px;
           background: linear-gradient(135deg, #fde047 0%, #eab308 100%);
@@ -370,7 +423,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
           bottom: 10px;
         }
 
-        /* เลเยอร์ 4: จุดขาวใจกลาง (ร้อนที่สุด) */
         .flame-inner-white {
           width: 15px; height: 15px;
           background: #ffffff;
@@ -387,7 +439,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
           filter: blur(4px);
         }
 
-        /* --- Keyframes สำหรับความพริ้วไหวที่ต่างกันของแต่ละชั้น --- */
         @keyframes flicker-back {
           0%   { transform: rotate(-45deg) scale(1) skewX(2deg); filter: blur(2px); }
           50%  { transform: rotate(-42deg) scale(1.05) skewX(-2deg); filter: blur(3px); }
@@ -408,7 +459,6 @@ export default function StreakResult({ pts, maxPts, profile, streak, weekDays, i
           100% { transform: rotate(-42deg) scale(1.2) translateY(-1px); opacity: 1; }
         }
 
-        /* --- Sparks (สะเก็ดไฟ) --- */
         .sparks-container {
           position: absolute;
           width: 100%; height: 200px;

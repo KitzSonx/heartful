@@ -1,7 +1,4 @@
-
 // WaterSlider.tsx - สไลเดอร์สำหรับบันทึกปริมาณน้ำดื่มในหน้า Diary
-
-
 'use client'
 import { useState } from 'react'
 
@@ -53,21 +50,20 @@ export default function WaterSlider({ onChange }: WaterSliderProps) {
           type="range" min="0" max="10" step="1"
           value={glasses ?? 0}
           onChange={handleChange}
-          style={{ width: '100%', appearance: 'none' as any, background: 'transparent', cursor: 'pointer', height: 22, position: 'relative' }}
+          style={{ width: '100%', appearance: 'none', WebkitAppearance: 'none', background: 'transparent', cursor: 'pointer', height: 22, position: 'relative' }}
         />
       </div>
       <div style={{ minWidth: 88, textAlign: 'right' }}>
         {glasses !== null ? (
-          <span style={{ fontSize: 11, fontWeight: 500, color, background: color + '18', padding: '3px 8px', borderRadius: 99, whiteSpace: 'nowrap' }}>
-            💧 {glasses} แก้ว {pts! > 0 ? `+${pts}pt` : '0pt'}
+          <span style={{ fontSize: 11, fontWeight: 500, color, background: `${color}18`, padding: '3px 8px', borderRadius: 99, whiteSpace: 'nowrap' }}>
+            🥛 {glasses} แก้ว {pts !== null && pts > 0 ? `+${pts}pt` : '0pt'}
           </span>
         ) : (
           <span style={{ fontSize: 11, color: 'var(--text-hint)' }}>เลื่อนเพื่อเลือก</span>
         )}
       </div>
       <style>{`
-        input[type=range]::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 0 10px rgba(99,153,246,0.5), 0 2px 4px rgba(0,0,0,0.3); cursor: pointer; }
-        input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 99px; background: rgba(255,255,255,0.08); }
+        input[type=range]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 0 10px rgba(153,246,228,0.5), 0 2px 4px rgba(0,0,0,0.3); cursor: pointer; }
       `}</style>
     </div>
   )

@@ -1,95 +1,92 @@
-// supabase-diary.ts - ฟังก์ชันสำหรับจัดการข้อมูลโปรไฟล์และบันทึกใน Supabase
+// lib/supabase-diary.ts - ฟังก์ชันจัดการข้อมูลโปรไฟล์และไดอารี่ผ่าน Supabase (Real Database 100%)
 import { supabase } from './supabase'
+import { getBangkokDateString, getBangkokPastDays, getBangkokDaysAgo } from './date'
+import type { DiaryInput, Profile, WeekDayEntry } from '../types/database'
 
-// ดึงหรือสร้าง profile อัตโนมัติถ้าไม่มี
-export async function getOrCreateStudentProfile(
-  fullName: string,
-  room: string,
-  studentNumber: number
-) {
-  // 1. หาก่อนว่ามีอยู่ไหม
-  const { data: existing } = await supabase
+// ดึงข้อมูลโปรไฟล์ของ User ปัจจุบัน
+export async function getCurrentProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, room, student_number, streak, last_diary_date, total_points')
-    .eq('room', room)
-    .eq('student_number', studentNumber)
-    .eq('role', 'student')
+    .select('id, student_id, full_name, room, student_number, streak, last_diary_date, total_points, role, created_at')
+    .eq('id', userId)
     .single()
 
-  if (existing) return existing
-
-  // 2. ไม่มี → สร้างใหม่
-  const { data: created, error } = await supabase
-    .from('profiles')
-    .insert({
-      full_name: fullName,
-      room,
-      student_number: studentNumber,
-      role: 'student',
-      streak: 0,
-      total_points: 0,
-    })
-    .select('id, full_name, room, student_number, streak, last_diary_date, total_points')
-    .single()
-
-  if (error) {
-    console.error('สร้าง profile ไม่สำเร็จ:', error)
+  if (error || !data) {
     return null
   }
 
-  return created
+  return data as Profile
 }
 
-// เช็คว่าวันนี้บันทึกแล้วหรือยัง
+// ตรวจสอบว่าวันนี้ผู้ใช้บันทึกไดอารี่แล้วหรือไม่
 export async function getTodayDiary(userId: string) {
-  const today = new Date().toISOString().slice(0, 10)
-  const { data } = await supabase
+  const today = getBangkokDateString()
+  const { data, error } = await supabase
     .from('diary_entries')
     .select('id, total_pts, is_complete, created_at')
     .eq('user_id', userId)
     .eq('date', today)
     .single()
+
+  if (error || !data) {
+    return null
+  }
+
   return data
 }
 
-// บันทึก diary entry
-export async function saveDiaryEntry(userId: string, entry: {
-  sleep_level: number, sleep_pts: number,
-  steps_level: number, steps_pts: number,
-  ate_vegetables: boolean, veggie_meals: number,
-  sugar_level: number, sugar_pts: number,
-  drank_water: boolean, water_glasses: number, water_pts: number,
-  body_pts: number,
-  observed_emotions: boolean,
-  limited_social_media: boolean,
-  meditated: boolean,
-  gratitude_text: string,
-  mind_pts: number,
-  time_with_loved: boolean,
-  helped_others: boolean,
-  tidied_space: boolean,
-  expressed_opinion: boolean,
-  social_pts: number,
-  total_pts: number,
-  is_complete: boolean,
-}) {
-  const today = new Date().toISOString().slice(0, 10)
+// บันทึก diary entry เชื่อมโยงกับ auth.uid() จริง
+export async function saveDiaryEntry(userId: string, entry: DiaryInput) {
+  const today = getBangkokDateString()
 
-  const { data, error } = await supabase
+  const payload: Record<string, unknown> = {
+    user_id: userId,
+    date: today,
+    ...entry,
+  }
+
+  let { data, error } = await supabase
     .from('diary_entries')
-    .upsert(
-      { user_id: userId, date: today, ...entry },
-      { onConflict: 'user_id,date' }
-    )
+    .upsert(payload, { onConflict: 'user_id,date' })
     .select()
     .single()
 
-  if (error) { console.error('บันทึก diary ไม่สำเร็จ:', error); return null }
+  // หากเกิด error จาก column ใหม่ที่ยังไม่ได้รัน SQL (เช่น mood, concerns, need_counselor)
+  if (error && (error.message?.includes('column') || error.code === '42703' || error.code === 'PGRST204')) {
+    console.warn('ตาราง diary_entries ใน Supabase ยังไม่มีคอลัมน์ใหม่ กำลังบันทึกด้วยฟิลด์พื้นฐานแทน:', error.message)
+    const basicEntry = { ...entry }
+    delete basicEntry.mood
+    delete basicEntry.concerns
+    delete basicEntry.need_counselor
 
+    const retry = await supabase
+      .from('diary_entries')
+      .upsert(
+        {
+          user_id: userId,
+          date: today,
+          ...basicEntry,
+        },
+        { onConflict: 'user_id,date' }
+      )
+      .select()
+      .single()
+
+    data = retry.data
+    error = retry.error
+  }
+
+  if (error) {
+    console.error('บันทึกไดอารี่ไม่สำเร็จ:', error.message || error)
+    return null
+  }
+
+  // อัปเดต Streak และ Total Points ลง Profile จริง
   await updateStreak(userId, today)
   return data
 }
 
+// คำนวณและอัปเดต Streak กับ Total Points
 async function updateStreak(userId: string, today: string) {
   const { data: profile } = await supabase
     .from('profiles')
@@ -99,21 +96,21 @@ async function updateStreak(userId: string, today: string) {
 
   if (!profile) return
 
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  const yesterday = getBangkokDaysAgo(1)
 
   let newStreak: number
   if (profile.last_diary_date === today) {
-    // บันทึกซ้ำวันเดิม ไม่เปลี่ยน streak
+    // บันทึกซ้ำวันเดิม Streak คงเดิม
     newStreak = profile.streak ?? 0
   } else if (profile.last_diary_date === yesterday) {
-    // วันติดกัน streak +1
+    // วันติดกัน Streak +1
     newStreak = (profile.streak ?? 0) + 1
   } else {
-    // ขาดไปหลายวัน เริ่มใหม่ที่ 1
+    // ขาดช่วง เริ่มใหม่ที่ 1
     newStreak = 1
   }
 
-  // คำนวณ total_points รวมทุก entry
+  // คำนวณคะแนนรวมทั้งหมดจาก diary_entries ของ user นี้
   const { data: allEntries } = await supabase
     .from('diary_entries')
     .select('total_pts')
@@ -131,20 +128,20 @@ async function updateStreak(userId: string, today: string) {
     .eq('id', userId)
 }
 
-// ดึง streak และข้อมูลสัปดาห์นี้
-export async function getWeeklyData(userId: string) {
-  const days: string[] = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86400000)
-    days.push(d.toISOString().slice(0, 10))
-  }
+// ดึงข้อมูล 7 วันล่าสุดของผู้ใช้
+export async function getWeeklyData(userId: string): Promise<WeekDayEntry[]> {
+  const days = getBangkokPastDays(7)
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('diary_entries')
     .select('date, total_pts, is_complete')
     .eq('user_id', userId)
     .gte('date', days[0])
-    .lte('date', days[6])
+    .lte('date', days[days.length - 1])
+
+  if (error) {
+    console.error('ดึงข้อมูลรายสัปดาห์ไม่สำเร็จ:', error)
+  }
 
   return days.map(d => ({
     date: d,
@@ -152,14 +149,48 @@ export async function getWeeklyData(userId: string) {
   }))
 }
 
-// เหลือไว้ให้ backward compatible
-export async function getStudentProfile(room: string, studentNumber: number) {
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, full_name, room, student_number, streak, last_diary_date, total_points')
-    .eq('room', room)
-    .eq('student_number', studentNumber)
-    .eq('role', 'student')
-    .single()
-  return data
+// ดึงรายการข้อความในโหลความรู้สึกทั้งหมดของ User
+export async function getJarNotes(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('jar_notes')
+      .select('id, user_id, content, mood, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.warn('ยังไม่พบบันทึกโหลความรู้สึก (อาจยังไม่ได้รัน SQL สร้างตาราง jar_notes):', error.message || error)
+      return []
+    }
+
+    return data ?? []
+  } catch (err) {
+    console.warn('Error fetching jar notes:', err)
+    return []
+  }
+}
+
+// เพิ่มข้อความลงโหลความรู้สึกลง Supabase
+export async function addJarNote(userId: string, content: string, mood?: string) {
+  try {
+    const { data, error } = await supabase
+      .from('jar_notes')
+      .insert({
+        user_id: userId,
+        content,
+        mood: mood || null,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.warn('หยอดลงโหลความรู้สึกไม่สำเร็จ (โปรดตรวจสอบตาราง jar_notes ใน Supabase):', error.message || error)
+      return null
+    }
+
+    return data
+  } catch (err) {
+    console.warn('Error adding jar note:', err)
+    return null
+  }
 }

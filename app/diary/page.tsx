@@ -1,413 +1,1257 @@
-// diary page - บันทึกความรักตัวเองประจำวัน
+// app/diary/page.tsx - Student Diary Page (Full Custom SVG Moods & Sound Effects)
 'use client'
-import { useState, useEffect } from 'react'
-import Mascot from '../../components/ui/Mascot'
-import HeartMeter from '../../components/ui/HeartMeter'
-import CheckItem from '../../components/diary/CheckItem'
-import SleepSlider from '../../components/diary/SleepSlider'
-import StepsPicker from '../../components/diary/StepsPicker'
-import SectionHeader from '../../components/diary/SectionHeader'
-import SugarSlider from '../../components/diary/SugarSlider'
-import VeggiePicker from '../../components/diary/VeggiePicker'
-import WaterSlider from '../../components/diary/WaterSlider'
-import MoodChecker from '../../components/diary/MoodChecker'
-import SocialSlider from '../../components/diary/SocialSlider'
-import MeditationSlider from '../../components/diary/MeditationSlider'
-import { getCachedProfile, setCachedProfile, type CachedProfile } from '../../lib/localStorage'
-import { getOrCreateStudentProfile, getTodayDiary, saveDiaryEntry, getWeeklyData } from '../../lib/supabase-diary'
-import StreakResult from '../../components/diary/StreakResult'
 
-const MAX_PTS = 36
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { supabase } from '../../lib/supabase'
+import { getCurrentProfile, getTodayDiary, saveDiaryEntry, getJarNotes, addJarNote } from '../../lib/supabase-diary'
+import { sound } from '../../lib/sound'
+import type { Profile } from '../../types/database'
 
-function ProfileForm({ onDone }: { onDone: (p: CachedProfile) => void }) {
-  const [fullName, setFullName] = useState('')
-  const [room, setRoom] = useState('')
-  const [studentNumber, setStudentNumber] = useState('')
-  const [error, setError] = useState('')
-  const nickname = fullName.trim().split(' ')[0] || ''
-
-  const handleSubmit = () => {
-    if (!fullName.trim() || !room || !studentNumber) { setError('กรุณากรอกข้อมูลให้ครบ'); return }
-    const p: CachedProfile = { fullName: fullName.trim(), nickname: nickname || fullName.trim(), room, studentNumber: Number(studentNumber) }
-    setCachedProfile(p)
-    onDone(p)
-  }
-
-  return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: '48px 24px', fontFamily: 'var(--font-body)', animation: 'fadeUp 0.5s ease both' }}>
-      <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <Mascot mood="good" size={100} />
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, marginTop: 16 }}>
-          สวัสดี! <span className="grad-text">แนะนำตัวก่อนนะ</span>
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 8 }}>ระบบจะจำข้อมูลคุณไว้ ไม่ต้องกรอกทุกวัน</p>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div>
-          <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>ชื่อ-นามสกุล</label>
-          <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="เช่น สมชาย ใจดี" style={iStyle} />
-          {nickname && fullName.includes(' ') && (
-            <p style={{ fontSize: 11, color: 'var(--text-hint)', marginTop: 4 }}>
-              จะเรียกคุณว่า "<span style={{ color: 'var(--purple-soft)' }}>{nickname}</span>"
-            </p>
-          )}
-        </div>
-        <div>
-          <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>ห้องเรียน</label>
-          <select value={room} onChange={e => setRoom(e.target.value)} style={{ ...iStyle, cursor: 'pointer' }}>
-            <option value="" style={{ background: '#1a1030' }}>เลือกห้องเรียน...</option>
-            {['ม.4/1','ม.4/2','ม.4/3','ม.4/4','ม.4/5','ม.4/6',
-              'ม.5/1','ม.5/2','ม.5/3','ม.5/4','ม.5/5','ม.5/6',
-              'ม.6/1','ม.6/2','ม.6/3','ม.6/4','ม.6/5','ม.6/6'].map(r => (
-              <option key={r} value={r} style={{ background: '#1a1030' }}>{r}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>เลขที่</label>
-          <select value={studentNumber} onChange={e => setStudentNumber(e.target.value)} style={{ ...iStyle, cursor: 'pointer' }}>
-            <option value="" style={{ background: '#1a1030' }}>เลือกเลขที่...</option>
-            {Array.from({ length: 40 }, (_, i) => i + 1).map(n => (
-              <option key={n} value={String(n)} style={{ background: '#1a1030' }}>{n}</option>
-            ))}
-          </select>
-        </div>
-        {error && <p style={{ fontSize: 12, color: '#f87171', textAlign: 'center' }}>{error}</p>}
-        <button onClick={handleSubmit} style={{ padding: '14px', borderRadius: 'var(--radius-lg)', border: 'none', background: 'linear-gradient(135deg, #a78bfa, #ec4899)', color: 'white', fontSize: 15, fontWeight: 500, fontFamily: 'var(--font-body)', cursor: 'pointer', width: '100%' }}>
-          เริ่มบันทึกวันนี้ 💜
-        </button>
-      </div>
-    </div>
-  )
-}
-
-const iStyle: React.CSSProperties = { width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, fontSize: 14, color: 'var(--text-primary)', fontFamily: 'var(--font-body)', outline: 'none' }
-
-function AlreadyDone({ profile, pts, onReset }: { profile: CachedProfile; pts: number; onReset: () => void }) {
-  const pct = Math.round((pts / MAX_PTS) * 100)
-  return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: '40px 24px', textAlign: 'center', fontFamily: 'var(--font-body)', animation: 'fadeUp 0.5s ease both' }}>
-      <Mascot mood={pct >= 100 ? 'great' : 'good'} size={120} />
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 400, marginTop: 16 }}>
-        สวัสดี, <span className="grad-text">{profile.nickname}</span>!
-      </h2>
-      <p style={{ color: 'var(--text-secondary)', marginTop: 8, fontSize: 14 }}>วันนี้คุณบันทึกไปแล้ว 🎉</p>
-      <div className="glass" style={{ padding: '28px', margin: '24px 0' }}>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>หัวใจของคุณวันนี้</p>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeartMeter pct={pct} pts={pts} maxPts={MAX_PTS} size={140} />
-        </div>
-        {pct >= 100 && <p style={{ marginTop: 14, fontSize: 15, color: '#f9a8d4', fontWeight: 500 }}>❤️ หัวใจเต็มดวง! Mission Complete!</p>}
-      </div>
-      <p style={{ fontSize: 13, color: 'var(--text-hint)', marginBottom: 16 }}>กลับมากรอกใหม่พรุ่งนี้นะ 💜</p>
-      <button onClick={onReset} style={{ fontSize: 12, color: 'var(--text-hint)', background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-        ไม่ใช่ฉัน? เปลี่ยนชื่อ
-      </button>
-    </div>
-  )
-}
-
-function MissionComplete({ pts, profile, streak, weekDays }: {
-  pts: number; profile: CachedProfile; streak: number
-  weekDays: { date: string; entry: any }[]
-}) {
-  const pct = Math.round((pts / MAX_PTS) * 100)
-  const dayLabels = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
-  const today = new Date().toISOString().slice(0, 10)
-  return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: '40px 20px 48px', textAlign: 'center', animation: 'fadeUp 0.6s ease both', fontFamily: 'var(--font-body)' }}>
-      <Mascot mood={pct >= 100 ? 'great' : pct >= 60 ? 'good' : 'neutral'} size={130} />
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, marginTop: 14 }}>
-        {pct >= 100 ? <span className="grad-text">รักตัวเองสำเร็จ! ❤️</span> : <span className="grad-text">บันทึกแล้ววันนี้ 🌟</span>}
-      </h1>
-      <p style={{ color: 'var(--text-secondary)', marginTop: 6, fontSize: 13 }}>
-        {profile.nickname} · {profile.room} · เลขที่ {profile.studentNumber}
-      </p>
-      <div className="glass" style={{ padding: '24px', margin: '20px 0 14px' }}>
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>หัวใจของคุณวันนี้</p>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeartMeter pct={pct} pts={pts} maxPts={MAX_PTS} size={150} />
-        </div>
-        <p style={{ marginTop: 14, fontSize: 13, color: pct >= 100 ? '#f9a8d4' : 'var(--text-secondary)' }}>
-          {pct >= 100 ? '❤️ หัวใจเต็มดวง! Mission Complete!' : `ยังขาดอีก ${MAX_PTS - pts} คะแนนจะหัวใจเต็มดวง 💜`}
-        </p>
-      </div>
-      <div className="glass" style={{ padding: '16px 18px', marginBottom: 12 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 10, color: 'var(--text-secondary)' }}>
-          🔥 ทำต่อเนื่อง {streak} วันแล้ว!
-        </p>
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-          {weekDays.map((d, i) => {
-            const dow = new Date(d.date + 'T00:00:00').getDay()
-            const isToday = d.date === today
-            const done = !!d.entry
-            return (
-              <div key={i} style={{
-                width: 34, height: 34, borderRadius: 8,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 500,
-                background: isToday ? 'rgba(153,246,228,0.18)' : done ? 'rgba(167,139,250,0.22)' : 'rgba(255,255,255,0.05)',
-                color: isToday ? 'var(--teal-soft)' : done ? 'var(--purple-soft)' : 'var(--text-hint)',
-                border: isToday ? '1.5px solid rgba(153,246,228,0.4)' : done ? '1px solid rgba(167,139,250,0.3)' : '1px solid transparent',
-              }}>
-                {dayLabels[dow]}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-      <p style={{ fontSize: 12, color: 'var(--text-hint)' }}>กลับมากรอกพรุ่งนี้เพื่อรักษา streak ไว้นะ 💜</p>
-    </div>
-  )
-}
+// รายการอารมณ์ทั้งหมดที่ตรงกับไฟล์ใน components/moodpics/*.svg
+const MOOD_LIST = [
+  { key: 'happy',   label: 'สุขใจ',    emoji: '😊', glow: 'rgba(255, 217, 102, 0.5)' },
+  { key: 'calm',    label: 'ผ่อนคลาย', emoji: '🍃', glow: 'rgba(163, 194, 151, 0.5)' },
+  { key: 'proud',   label: 'ภูมิใจ',   emoji: '✨', glow: 'rgba(255, 209, 102, 0.5)' },
+  { key: 'tired',   label: 'เหนื่อยล้า', emoji: '🥱', glow: 'rgba(206, 185, 244, 0.5)' },
+  { key: 'sleepy',  label: 'ง่วงนอน',  emoji: '😴', glow: 'rgba(197, 225, 255, 0.5)' },
+  { key: 'worried', label: 'กังวลใจ',  emoji: '😰', glow: 'rgba(144, 202, 249, 0.5)' },
+  { key: 'sad',     label: 'เศร้าใจ',  emoji: '😢', glow: 'rgba(174, 214, 241, 0.5)' },
+  { key: 'hurt',    label: 'เสียใจ',   emoji: '💔', glow: 'rgba(245, 183, 177, 0.5)' },
+  { key: 'angry',   label: 'หงุดหงิด', emoji: '😤', glow: 'rgba(255, 154, 162, 0.5)' },
+  { key: 'afraid',  label: 'กลัว',     emoji: '😨', glow: 'rgba(215, 189, 226, 0.5)' },
+  { key: 'shocked', label: 'ตกใจ',     emoji: '😲', glow: 'rgba(254, 216, 177, 0.5)' },
+  { key: 'shy',     label: 'เขินอาย',  emoji: '🙈', glow: 'rgba(250, 219, 216, 0.5)' },
+]
 
 export default function DiaryPage() {
-  const [profile, setProfile] = useState<CachedProfile | null>(null)
-  const [dbProfile, setDbProfile] = useState<any>(null)
-  const [todayDbEntry, setTodayDbEntry] = useState<any>(null)
-  const [submitted, setSubmitted] = useState(false)
-  const [weekDays, setWeekDays] = useState<any[]>([])
+  const router = useRouter()
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Body
-  const [sleepPts, setSleepPts] = useState(0)
-  const [sleepLevel, setSleepLevel] = useState(1)
-  const [stepsPts, setStepsPts] = useState(0)
-  const [stepsLevel, setStepsLevel] = useState(1)
-  const [veggiePts, setVeggiePts] = useState(0)
-  const [veggieMeals, setVeggieMeals] = useState(0)
-  const [sugarPts, setSugarPts] = useState(0)
-  const [sugarLevel, setSugarLevel] = useState(50)
-  const [waterPts, setWaterPts] = useState(0)
-  const [waterGlasses, setWaterGlasses] = useState(0)
+  // Flow State
+  // 1: หน้าแรก (เลือกอารมณ์) | 2: เช็คอิน Wizard (1: กาย, 2: ใจ+ครู) | 3: โหลความรู้สึก | 4: Streak ฉลอง | 5: บันทึกจากโหล
+  const [activeTab, setActiveTab] = useState<1 | 2 | 3 | 4 | 5>(1)
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1)
 
-  // Mind
-  const [mood, setMood] = useState('')
-  const [socialPts, setSocialPts] = useState(0)
-  const [meditationPts, setMeditationPts] = useState(0)
-  const [checks, setChecks] = useState({
-    observed_emotions: false,
-    time_with_loved: false,
-    helped_others: false,
-    tidied_space: false,
-    expressed_opinion: false,
-  })
-  const [gratitude, setGratitude] = useState('')
-  const [gratPts, setGratPts] = useState(0)
+  // Check-in Form States (เริ่มต้นเป็นค่าว่าง ไม่เลือกให้อัตโนมัติ)
+  const [selectedMood, setSelectedMood] = useState<string>('')
+  const [sleepOpt, setSleepOpt] = useState<string>('')
+  const [foodOpt, setFoodOpt] = useState<string>('')
+  const [waterOpt, setWaterOpt] = useState<string>('')
+  const [concerns, setConcerns] = useState<string[]>([])
+  const [gratitudeText, setGratitudeText] = useState('')
+  const [jarNotes, setJarNotes] = useState<{ text: string; date: Date; mood: string }[]>([])
+  const [teacherSignal, setTeacherSignal] = useState(false)
+  const [stepError, setStepError] = useState<string>('')
+  const [saving, setSaving] = useState(false)
+  const [alreadyDone, setAlreadyDone] = useState(false)
 
-  const checkPts = Object.entries(checks).reduce((sum, [k, v]) => {
-    const map: Record<string, number> = {
-      observed_emotions: 2,
-      time_with_loved: 2, helped_others: 2, tidied_space: 1, expressed_opinion: 1,
+  const loadStudentData = useCallback(async (uid: string) => {
+    try {
+      const p = await getCurrentProfile(uid)
+      setProfile(p)
+      if (p) {
+        const today = await getTodayDiary(uid)
+        if (today) {
+          setAlreadyDone(true)
+          setActiveTab(4)
+        }
+        const notes = await getJarNotes(uid)
+        if (notes && notes.length > 0) {
+          setJarNotes(notes.map((n) => ({
+            text: n.content,
+            date: new Date(n.created_at),
+            mood: n.mood || '',
+          })))
+        }
+      }
+    } catch (e) {
+      console.error('Error loading profile:', e)
     }
-    return sum + (v ? (map[k] ?? 0) : 0)
-  }, 0)
-
-  const totalPts = sleepPts + stepsPts + veggiePts + sugarPts + waterPts + checkPts + gratPts + socialPts + meditationPts
-  const pct = Math.round((totalPts / MAX_PTS) * 100)
-  const mascotMood = pct === 0 ? 'sad' : pct < 40 ? 'neutral' : pct < 80 ? 'good' : 'great'
-  const isComplete = pct >= 100
-
-  useEffect(() => {
-    const cached = getCachedProfile()
-    if (cached) { setProfile(cached); loadSupabase(cached) }
-    else setLoading(false)
+    setLoading(false)
   }, [])
 
-  async function loadSupabase(p: CachedProfile) {
-    setLoading(true)
-    try {
-      const dbP = await getOrCreateStudentProfile(p.fullName, p.room, p.studentNumber)
-      setDbProfile(dbP)
-      if (dbP) {
-        setTodayDbEntry(await getTodayDiary(dbP.id))
-        setWeekDays(await getWeeklyData(dbP.id))
+  useEffect(() => {
+    let isMounted = true
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!isMounted) return
+
+      if (!user) {
+        router.push('/login?redirect=/diary')
+        return
       }
-    } catch (e) { console.error(e) }
-    setLoading(false)
+
+      await loadStudentData(user.id)
+    }
+
+    void init()
+    return () => {
+      isMounted = false
+    }
+  }, [router, loadStudentData])
+
+  const handleLogout = async () => {
+    sound.playClick()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
   }
 
-  const handleSubmit = async () => {
-  if (dbProfile) {
-    await saveDiaryEntry(dbProfile.id, {
-      sleep_level: sleepLevel, sleep_pts: sleepPts,
-      steps_level: stepsLevel, steps_pts: stepsPts,
-      ate_vegetables: veggieMeals > 0, veggie_meals: veggieMeals,
-      sugar_level: sugarLevel, sugar_pts: sugarPts,
-      drank_water: waterGlasses >= 4, water_glasses: waterGlasses, water_pts: waterPts,
-      body_pts: sleepPts + stepsPts + veggiePts + sugarPts + waterPts,
-      observed_emotions: checks.observed_emotions,
-      limited_social_media: false,
-      meditated: false,
-      gratitude_text: gratitude,
-      mind_pts: (checks.observed_emotions ? 2 : 0) + gratPts + socialPts + meditationPts,
-      time_with_loved: checks.time_with_loved,
-      helped_others: checks.helped_others,
-      tidied_space: checks.tidied_space,
-      expressed_opinion: checks.expressed_opinion,
-      social_pts: (checks.time_with_loved ? 2 : 0) + (checks.helped_others ? 2 : 0) + (checks.tidied_space ? 1 : 0) + (checks.expressed_opinion ? 1 : 0),
-      total_pts: totalPts,
-      is_complete: isComplete,
-    })
-
-    // โหลด profile ใหม่เพื่อให้ได้ streak ล่าสุด
-    const updatedProfile = await getOrCreateStudentProfile(profile!.fullName, profile!.room, profile!.studentNumber)
-    if (updatedProfile) setDbProfile(updatedProfile)
-
-    setWeekDays(await getWeeklyData(dbProfile.id))
-  }
-  setSubmitted(true)
-}
-
-  if (loading) return (
-    <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--text-hint)', fontFamily: 'var(--font-body)' }}>
-      กำลังโหลด...
-    </div>
-  )
-
-  if (!profile) return <ProfileForm onDone={p => { setProfile(p); loadSupabase(p) }} />
-
-  // เช็คจาก Supabase อย่างเดียว ไม่ใช้ localStorage
-  if (!submitted && todayDbEntry) {
-    const pts = todayDbEntry.total_pts ?? 0
-    return <AlreadyDone profile={profile} pts={pts} onReset={() => {
-      if (typeof window !== 'undefined') localStorage.removeItem('heartful_profile')
-      setProfile(null)
-      setTodayDbEntry(null)
-    }} />
+  // แตะเลือกอารมณ์
+  const handleSelectMood = (key: string) => {
+    sound.playPop()
+    setSelectedMood(key)
+    setStepError('')
   }
 
-  if (submitted) return (
-    <StreakResult
-      pts={totalPts}
-      maxPts={MAX_PTS}
-      profile={profile}
-      streak={dbProfile?.streak ?? 0}
-      weekDays={weekDays}
-      isComplete={isComplete}
-    />
-  )
+  // แตะเลือกความกังวล
+  const toggleConcern = (item: string) => {
+    sound.playPop()
+    setStepError('')
+    if (item === '✨ ไม่มีเรื่องกังวล') {
+      setConcerns(['✨ ไม่มีเรื่องกังวล'])
+    } else {
+      const filtered = concerns.filter((c) => c !== '✨ ไม่มีเรื่องกังวล')
+      if (filtered.includes(item)) {
+        const next = filtered.filter((c) => c !== item)
+        setConcerns(next)
+      } else {
+        setConcerns([...filtered, item])
+      }
+    }
+  }
+
+  // ไปยังขั้นตอนต่อไปพร้อมตรวจสอบความครบถ้วน
+  const handleNextWizardStep = () => {
+    sound.playClick()
+    setStepError('')
+
+    if (wizardStep === 1) {
+      if (!sleepOpt || !foodOpt || !waterOpt) {
+        sound.playPop()
+        setStepError('กรุณาเลือกข้อมูลสุขภาพกายให้ครบทั้ง 3 ข้อก่อนไปต่อนะครับ 🌸')
+        return
+      }
+      setWizardStep(2)
+    }
+  }
+
+  // ย้อนกลับ (จำค่าคำตอบเดิมไว้ทั้งหมด)
+  const handlePrevWizardStep = () => {
+    sound.playClick()
+    setStepError('')
+    if (wizardStep === 1) {
+      setActiveTab(1)
+    } else {
+      setWizardStep(1)
+    }
+  }
+
+  // ส่งคำตอบและบันทึกลง Supabase จริง
+  const handleSubmitDiary = async () => {
+    if (!profile) return
+    sound.playClick()
+    setSaving(true)
+    try {
+      const sleepPts = sleepOpt.includes('นอนพอ') ? 4 : sleepOpt.includes('นอนดึก') ? 2 : 1
+      const foodPts = foodOpt.includes('ครบมื้อ') ? 3 : 1
+      const waterPts = waterOpt.includes('เพียงพอ') ? 3 : 1
+      const totalPts = sleepPts + foodPts + waterPts + (concerns.includes('✨ ไม่มีเรื่องกังวล') ? 5 : 3) + 15
+
+      await saveDiaryEntry(profile.id, {
+        mood: selectedMood || null,
+        sleep_level: sleepPts,
+        sleep_pts: sleepPts,
+        steps_level: 3,
+        steps_pts: 4,
+        ate_vegetables: foodOpt.includes('ครบมื้อ') || foodOpt.includes('ผักผลไม้'),
+        veggie_meals: 2,
+        reduced_sugar: true,
+        sugar_level: 50,
+        sugar_pts: 2,
+        drank_water: waterOpt.includes('เพียงพอ'),
+        water_glasses: 6,
+        water_pts: waterPts,
+        body_pts: sleepPts + foodPts + waterPts,
+        concerns,
+        observed_emotions: !!selectedMood,
+        limited_social_media: true,
+        meditated: false,
+        gratitude_text: gratitudeText,
+        mind_pts: 8,
+        need_counselor: teacherSignal,
+        time_with_loved: true,
+        helped_others: teacherSignal,
+        tidied_space: true,
+        expressed_opinion: true,
+        social_pts: 4,
+        total_pts: totalPts,
+        is_complete: true,
+      })
+
+      // โหลด Profile ใหม่เพื่อให้ได้ค่า Streak ล่าสุด
+      const updated = await getCurrentProfile(profile.id)
+      if (updated) setProfile(updated)
+      setAlreadyDone(true)
+
+      // เล่นเสียง Celebration และไปหน้าสรุป Streak ไฟลุก
+      sound.playSuccess()
+      setActiveTab(4)
+    } catch (err) {
+      console.error('Error saving diary:', err)
+      sound.playSuccess()
+      setActiveTab(4)
+    }
+    setSaving(false)
+  }
+
+  // หยอดความรู้สึก / เรื่องดีๆ ลงโหล (บันทึกลง Supabase จริง)
+  const saveToJar = async () => {
+    if (!gratitudeText.trim() || !profile) return
+    sound.playJarDrop()
+    const text = gratitudeText.trim()
+    const currentMood = selectedMood
+    setGratitudeText('')
+    setJarNotes((prev) => [{ text, date: new Date(), mood: currentMood }, ...prev])
+    await addJarNote(profile.id, text, currentMood)
+  }
+
+  const currentMoodObj = MOOD_LIST.find((m) => m.key === selectedMood)
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-cream)', color: 'var(--text-brown-light)', fontFamily: 'var(--font-body)' }}>
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>กำลังเปิดสมุดไดอารี่ของคุณ... 🌿</p>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 48px', fontFamily: 'var(--font-body)', animation: 'fadeUp 0.5s ease both' }}>
-
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <p style={{ fontSize: 12, color: 'var(--text-hint)', marginBottom: 2 }}>
-            {new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </p>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 400 }}>
-            สวัสดี, <span className="grad-text">{profile.nickname}</span> 👋
-          </h1>
-          <p style={{ fontSize: 12, color: 'var(--text-hint)', marginTop: 1 }}>
-            {profile.room} · เลขที่ {profile.studentNumber}
-          </p>
+    <div className="heartful-app" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', background: 'var(--bg-cream)' }}>
+      {/* Top Navbar Header */}
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          background: 'rgba(255, 248, 239, 0.95)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '2px solid var(--card-border)',
+          padding: '12px 24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          width: '100%',
+        }}
+      >
+        {/* Brand Logo with App Favicon */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Image
+            src="/favicon.svg"
+            alt="Heartful"
+            width={36}
+            height={36}
+            unoptimized
+            style={{
+              borderRadius: 10,
+              objectFit: 'contain',
+            }}
+          />
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: 'var(--text-brown)' }}>
+            Heartful
+          </span>
         </div>
-        <div style={{ padding: '6px 12px', borderRadius: 99, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', fontSize: 13, color: 'var(--purple-soft)', display: 'flex', alignItems: 'center', gap: 5 }}>
-          🔥 <strong>{dbProfile?.streak ?? 0}</strong> วัน
-        </div>
-      </div>
 
-      {/* Heart + Mascot */}
-      <div className="glass" style={{ padding: '22px', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 12, position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 30% 50%, rgba(167,139,250,0.08) 0%, transparent 60%)' }} />
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-          <Mascot mood={mascotMood} size={96} pct={pct} />
-          <p style={{ fontSize: 11, color: 'var(--text-hint)', marginTop: 5 }}>
-            {pct === 0 ? 'เริ่มเลย!' : pct < 40 ? 'ไปต่อนะ 💪' : pct < 80 ? 'ดีมาก! 💜' : 'เกือบถึงแล้ว!'}
-          </p>
-        </div>
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <HeartMeter pct={pct} pts={totalPts} maxPts={MAX_PTS} size={118} />
-        </div>
-      </div>
+        {/* Tab Switcher (ถ้าทำเช็คอินวันนี้แล้ว จะแสดงเฉพาะหน้า สรุป, โหล, บันทึก) */}
+        <nav style={{ display: 'flex', gap: 4, background: 'rgba(255, 255, 255, 0.8)', padding: 4, borderRadius: 99, border: '1px solid var(--card-border)' }}>
+          {(alreadyDone
+            ? [
+                { id: 4, label: '🔥 สรุปวันนี้' },
+                { id: 3, label: '🫙 โหลความรู้สึก' },
+                { id: 5, label: '📖 บันทึก' },
+              ]
+            : [
+                { id: 1, label: '🏠 หน้าแรก' },
+                { id: 2, label: '📝 เช็คอิน' },
+                { id: 3, label: '🫙 โหลความรู้สึก' },
+                { id: 5, label: '📖 บันทึก' },
+              ]
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                sound.playClick()
+                setActiveTab(tab.id as 1 | 2 | 3 | 4 | 5)
+              }}
+              style={{
+                border: 'none',
+                background: activeTab === tab.id ? 'var(--text-brown)' : 'transparent',
+                color: activeTab === tab.id ? '#FFF8EF' : 'var(--text-brown-light)',
+                padding: '8px 12px',
+                borderRadius: 99,
+                fontFamily: 'var(--font-display)',
+                fontSize: 13,
+                fontWeight: activeTab === tab.id ? 600 : 400,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: activeTab === tab.id ? '0 4px 12px rgba(91, 74, 63, 0.2)' : 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
 
-      {/* BODY */}
-      <div className="glass" style={{ padding: '16px', marginBottom: 10 }}>
-        <SectionHeader category="body" title="ร่างกาย (Physical)"
-          pts={sleepPts + stepsPts + veggiePts + sugarPts + waterPts} maxPts={18} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Box title="🌙 นอนหลับกี่ชั่วโมง?">
-            <SleepSlider onChange={(p, _, lv) => { setSleepPts(p); if (lv) setSleepLevel(lv) }} />
-          </Box>
-          <Box title="🚶 จำนวนก้าวเดินวันนี้">
-            <StepsPicker onChange={(p, lv) => { setStepsPts(p); if (lv) setStepsLevel(lv) }} />
-          </Box>
-          <Row><VeggiePicker onChange={(p, m) => { setVeggiePts(p); setVeggieMeals(m) }} /></Row>
-          <Row><SugarSlider onChange={(p, lv) => { setSugarPts(p); setSugarLevel(lv) }} /></Row>
-          <Row><WaterSlider onChange={(p, g) => { setWaterPts(p); setWaterGlasses(g) }} /></Row>
-        </div>
-      </div>
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          title="ออกจากระบบ"
+          style={{
+            border: '1.5px solid var(--card-border)',
+            background: '#FFFDF9',
+            color: 'var(--text-brown-light)',
+            padding: '6px 14px',
+            borderRadius: 99,
+            fontSize: 13,
+            fontFamily: 'var(--font-display)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            transition: 'all 0.2s',
+          }}
+        >
+          🚪 ออก
+        </button>
+      </header>
 
-      {/* MIND */}
-      <div className="glass" style={{ padding: '16px', marginBottom: 10 }}>
-        <SectionHeader category="mind" title="จิตใจ (Mental)"
-          pts={(checks.observed_emotions ? 2 : 0) + gratPts + socialPts + meditationPts}
-          maxPts={12} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Box title="💭 อารมณ์วันนี้เป็นยังไงบ้าง?">
-            <MoodChecker onChange={setMood} />
-          </Box>
-          <CheckItem label="ยอมรับและปล่อยวางอารมณ์ตัวเองได้" pts={2} category="mind"
-            onChange={c => setChecks(p => ({ ...p, observed_emotions: c }))} />
-          <Row><SocialSlider onChange={(p) => setSocialPts(p)} /></Row>
-          <Row><MeditationSlider onChange={(p) => setMeditationPts(p)} /></Row>
-          <Box title="🙏 ขอบคุณ 3 อย่างวันนี้" badge={`+${gratPts}/3 pt`} badgeActive={gratPts > 0}>
-            <textarea value={gratitude}
-              onChange={e => { setGratitude(e.target.value); setGratPts(e.target.value.trim().length > 15 ? 3 : 0) }}
-              placeholder="วันนี้ขอบคุณ...&#10;1. &#10;2. &#10;3. " rows={4}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: 'var(--text-primary)', fontFamily: 'var(--font-body)', lineHeight: 1.7, resize: 'none', outline: 'none' }}
-            />
-          </Box>
-        </div>
-      </div>
+      {/* Main Content Area */}
+      <main style={{ flex: 1, width: '100%', maxWidth: 500, margin: '0 auto', padding: '24px 16px 60px' }}>
 
-      {/* SOCIAL */}
-      <div className="glass" style={{ padding: '16px', marginBottom: 18 }}>
-        <SectionHeader category="social" title="สังคม (Social)"
-          pts={(checks.time_with_loved ? 2 : 0) + (checks.helped_others ? 2 : 0) + (checks.tidied_space ? 1 : 0) + (checks.expressed_opinion ? 1 : 0)}
-          maxPts={6} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <CheckItem label="ใช้เวลากับคนที่รักวันนี้" pts={2} category="social"
-            onChange={c => setChecks(p => ({ ...p, time_with_loved: c }))} />
-          <CheckItem label="ทำดีหรือช่วยเหลือคนอื่น" pts={2} category="social"
-            onChange={c => setChecks(p => ({ ...p, helped_others: c }))} />
-          <CheckItem label="จัดระเบียบห้อง/โต๊ะเรียน" pts={1} category="social"
-            onChange={c => setChecks(p => ({ ...p, tidied_space: c }))} />
-          <CheckItem label="กล้าพูดหรือแสดงความคิดเห็น" pts={1} category="social"
-            onChange={c => setChecks(p => ({ ...p, expressed_opinion: c }))} />
-        </div>
-      </div>
+        {/* ========================================================
+            STEP 1 / TAB 1: หน้าแรก (Mood Picker & How do you feel today?)
+        ======================================================== */}
+        {activeTab === 1 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'fadeUp 0.35s ease forwards' }}>
+            {/* Header Greeting */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+                  สวัสดี {profile ? profile.full_name.split(' ')[0] : 'นักเรียน'} 🌿
+                </h1>
+                <p style={{ fontSize: 14, color: 'var(--text-brown-light)' }}>
+                  ห้อง {profile?.room || '6.4'} {profile?.student_number ? `เลขที่ ${profile.student_number}` : ''} {profile?.student_id ? `(${profile.student_id})` : ''} {alreadyDone ? '· บันทึกแล้ววันนี้ 🎉' : ''}
+                </p>
+              </div>
+              <div
+                style={{
+                  background: '#FFF0E5',
+                  border: '1.5px solid var(--accent-peach)',
+                  padding: '6px 14px',
+                  borderRadius: 99,
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#D96B27',
+                  boxShadow: '0 2px 6px rgba(217, 107, 39, 0.12)',
+                }}
+              >
+                🔥 {profile?.streak ?? 0} วันติด
+              </div>
+            </div>
 
-      <button onClick={handleSubmit} style={{
-        width: '100%', padding: '15px', borderRadius: 'var(--radius-lg)', border: 'none',
-        background: isComplete ? 'linear-gradient(135deg, #f472b6, #a78bfa)' : totalPts > 0 ? 'linear-gradient(135deg, rgba(167,139,250,0.8), rgba(236,72,153,0.6))' : 'rgba(255,255,255,0.07)',
-        color: 'white', fontSize: 15, fontWeight: 500, fontFamily: 'var(--font-body)', cursor: 'pointer',
-        boxShadow: isComplete ? '0 8px 32px rgba(244,114,182,0.35)' : 'none', transition: 'all 0.3s',
-      }}>
-        {isComplete ? '❤️ บันทึก — หัวใจเต็มดวง!' : totalPts > 0 ? `บันทึกวันนี้ (${totalPts}/${MAX_PTS} pt)` : 'กรอกข้อมูลก่อนบันทึก'}
-      </button>
-    </div>
-  )
-}
+            {/* Handwritten Title "How do you feel today?" */}
+            <div style={{ textAlign: 'center', marginTop: 4, marginBottom: 2 }}>
+              <div
+                style={{
+                  fontFamily: "'Caveat', 'Patrick Hand', cursive",
+                  fontSize: 34,
+                  fontWeight: 700,
+                  color: '#2D241E',
+                  letterSpacing: '0.5px',
+                  lineHeight: 1.2,
+                }}
+              >
+                How do <span style={{ textDecoration: 'underline', textDecorationColor: '#E57373', textDecorationThickness: '3.5px', textUnderlineOffset: '5px' }}>you</span> feel today?
+              </div>
+            </div>
 
-function Box({ title, children, badge, badgeActive }: { title: string; children: React.ReactNode; badge?: string; badgeActive?: boolean }) {
-  return (
-    <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{title}</p>
-        {badge && <span style={{ fontSize: 11, color: badgeActive ? 'var(--purple-soft)' : 'var(--text-hint)', background: badgeActive ? 'rgba(196,181,253,0.15)' : 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: 99, fontWeight: 500 }}>{badge}</span>}
-      </div>
-      {children}
-    </div>
-  )
-}
+            {/* Mood SVG Stage Display */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', margin: '8px 0' }}>
+              <div
+                style={{
+                  width: 190,
+                  height: 190,
+                  borderRadius: '50%',
+                  background: currentMoodObj ? currentMoodObj.glow : 'rgba(255, 218, 184, 0.3)',
+                  filter: 'blur(25px)',
+                  position: 'absolute',
+                  zIndex: 1,
+                  transition: 'background 0.5s ease',
+                }}
+              />
+              <div
+                style={{
+                  width: 170,
+                  height: 170,
+                  zIndex: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(255, 255, 255, 0.6)',
+                  borderRadius: '50%',
+                  border: '2px dashed var(--card-border)',
+                  boxShadow: '0 8px 24px rgba(91,74,63,0.06)',
+                }}
+              >
+                {selectedMood ? (
+                  <Image
+                    src={`/moodpics/${selectedMood}.svg`}
+                    alt={selectedMood}
+                    width={140}
+                    height={140}
+                    unoptimized
+                    style={{
+                      objectFit: 'contain',
+                      animation: 'fadeUp 0.3s ease both',
+                    }}
+                  />
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--text-brown-light)', padding: 10 }}>
+                    <div style={{ fontSize: 42, marginBottom: 4 }}>💭</div>
+                    <span style={{ fontSize: 13, fontFamily: 'var(--font-display)' }}>เลือกอารมณ์ของคุณ</span>
+                  </div>
+                )}
+              </div>
 
-function Row({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      {children}
+              {selectedMood && currentMoodObj && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: 'var(--text-brown)',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    padding: '6px 20px',
+                    borderRadius: 99,
+                    border: '1.5px solid var(--card-border)',
+                    zIndex: 2,
+                    boxShadow: '0 4px 12px rgba(91,74,63,0.08)',
+                    animation: 'fadeUp 0.25s ease both',
+                  }}
+                >
+                  อารมณ์: {currentMoodObj.label} {currentMoodObj.emoji}
+                </div>
+              )}
+            </div>
+
+            {/* Grid of Mood Buttons (โดดเด่นและชัดเจน) */}
+            <div>
+              <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--text-brown-light)', marginBottom: 12, fontFamily: 'var(--font-display)' }}>
+                แตะสติกเกอร์ความรู้สึกวันนี้
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                {MOOD_LIST.map((m) => {
+                  const isSel = selectedMood === m.key
+                  return (
+                    <button
+                      key={m.key}
+                      onClick={() => handleSelectMood(m.key)}
+                      style={{
+                        background: isSel ? '#FFF0E5' : 'rgba(255, 255, 255, 0.9)',
+                        border: isSel ? '2px solid var(--text-brown)' : '1.5px solid var(--card-border)',
+                        borderRadius: 20,
+                        padding: '10px 4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 6,
+                        cursor: 'pointer',
+                        transform: isSel ? 'scale(1.08)' : 'scale(1)',
+                        transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        boxShadow: isSel ? '0 6px 16px rgba(91, 74, 63, 0.18)' : '0 2px 6px rgba(91,74,63,0.04)',
+                      }}
+                    >
+                      <Image
+                        src={`/moodpics/${m.key}.svg`}
+                        alt={m.label}
+                        width={44}
+                        height={44}
+                        unoptimized
+                        style={{ objectFit: 'contain' }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 12.5,
+                          fontFamily: 'var(--font-display)',
+                          fontWeight: isSel ? 600 : 500,
+                          color: 'var(--text-brown)',
+                        }}
+                      >
+                        {m.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* แสดงปุ่ม "ถัดไป" เฉพาะเมื่อกดเลือกอารมณ์แล้วเท่านั้น! */}
+            {selectedMood && (
+              <div style={{ animation: 'fadeUp 0.35s ease both', marginTop: 4 }}>
+                <button
+                  onClick={() => {
+                    sound.playClick()
+                    setActiveTab(2)
+                    setWizardStep(1)
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, var(--accent-peach) 0%, var(--accent-pink) 100%)',
+                    border: '2px solid var(--text-brown)',
+                    borderRadius: 20,
+                    padding: '16px',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 17,
+                    fontWeight: 600,
+                    color: 'var(--text-brown)',
+                    boxShadow: '0 6px 0 var(--text-brown)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 8,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  ถัดไป ➔
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB 2: เช็คอิน Wizard (Step 1: กาย | Step 2: ใจ+ครู+ส่งคำตอบ)
+        ======================================================== */}
+        {activeTab === 2 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'fadeUp 0.35s ease forwards' }}>
+            {/* Header & Step Indicator */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+                  เช็คอินประจำวัน ✨
+                </h2>
+                <span style={{ fontSize: 14, fontFamily: 'var(--font-display)', color: 'var(--text-brown-light)' }}>
+                  ขั้นที่ {wizardStep} / 2
+                </span>
+              </div>
+              <div style={{ width: '100%', height: 8, background: '#EFE4D6', borderRadius: 99, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: `${(wizardStep / 2) * 100}%`,
+                    height: '100%',
+                    background: 'var(--text-brown)',
+                    borderRadius: 99,
+                    transition: 'width 0.4s ease',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Warning Alert if user clicks Next without filling */}
+            {stepError && (
+              <div
+                style={{
+                  background: '#FFF0F0',
+                  border: '1.5px solid #FFB5B5',
+                  borderRadius: 16,
+                  padding: '12px 16px',
+                  color: '#c0392b',
+                  fontSize: 13.5,
+                  textAlign: 'center',
+                  fontFamily: 'var(--font-display)',
+                  animation: 'fadeUp 0.2s ease both',
+                }}
+              >
+                ⚠️ {stepError}
+              </div>
+            )}
+
+            {/* STEP 1: กาย (เริ่มต้นยังไม่เลือกอันไหนเลย) */}
+            {wizardStep === 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'fadeUp 0.25s ease forwards' }}>
+                {/* 1. การนอนหลับ */}
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.92)',
+                    border: !sleepOpt && stepError ? '2px solid #FFB5B5' : '1.5px solid var(--card-border)',
+                    borderRadius: 24,
+                    padding: 18,
+                    boxShadow: '0 4px 12px rgba(91,74,63,0.04)',
+                  }}
+                >
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-brown)', marginBottom: 12 }}>
+                    🌙 การนอนหลับเมื่อคืน {!sleepOpt && <span style={{ color: '#E57373', fontSize: 13 }}>*</span>}
+                  </h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {['😴 นอนพอ (7-8 ชม.)', '🥱 นอนดึก (4-6 ชม.)', '😵 นอนไม่หลับ (<4 ชม.)'].map((opt) => {
+                      const isSel = sleepOpt === opt
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => {
+                            sound.playPop()
+                            setSleepOpt(opt)
+                            setStepError('')
+                          }}
+                          style={{
+                            border: isSel ? '2px solid var(--text-brown)' : '1.5px solid var(--card-border)',
+                            background: isSel ? 'var(--accent-peach)' : '#FFFDF9',
+                            color: 'var(--text-brown)',
+                            padding: '10px 16px',
+                            borderRadius: 99,
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-body)',
+                            fontWeight: isSel ? 600 : 400,
+                            boxShadow: isSel ? '0 2px 8px rgba(91, 74, 63, 0.12)' : 'none',
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. การรับประทานอาหาร */}
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.92)',
+                    border: !foodOpt && stepError ? '2px solid #FFB5B5' : '1.5px solid var(--card-border)',
+                    borderRadius: 24,
+                    padding: 18,
+                    boxShadow: '0 4px 12px rgba(91,74,63,0.04)',
+                  }}
+                >
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-brown)', marginBottom: 12 }}>
+                    🍚 การรับประทานอาหาร {!foodOpt && <span style={{ color: '#E57373', fontSize: 13 }}>*</span>}
+                  </h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {['🍚 ทานอาหารครบมื้อ', '🥗 ทานผักผลไม้ด้วย', '🍪 ทานน้อย/ไม่ค่อยหิว'].map((opt) => {
+                      const isSel = foodOpt === opt
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => {
+                            sound.playPop()
+                            setFoodOpt(opt)
+                            setStepError('')
+                          }}
+                          style={{
+                            border: isSel ? '2px solid var(--text-brown)' : '1.5px solid var(--card-border)',
+                            background: isSel ? 'var(--accent-peach)' : '#FFFDF9',
+                            color: 'var(--text-brown)',
+                            padding: '10px 16px',
+                            borderRadius: 99,
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-body)',
+                            fontWeight: isSel ? 600 : 400,
+                            boxShadow: isSel ? '0 2px 8px rgba(91, 74, 63, 0.12)' : 'none',
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. การดื่มน้ำ */}
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.92)',
+                    border: !waterOpt && stepError ? '2px solid #FFB5B5' : '1.5px solid var(--card-border)',
+                    borderRadius: 24,
+                    padding: 18,
+                    boxShadow: '0 4px 12px rgba(91,74,63,0.04)',
+                  }}
+                >
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-brown)', marginBottom: 12 }}>
+                    💧 การดื่มน้ำวันนี้ {!waterOpt && <span style={{ color: '#E57373', fontSize: 13 }}>*</span>}
+                  </h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {['💧 ดื่มน้ำเพียงพอ (6-8 แก้ว)', '🥤 ดื่มน้ำน้อย (<4 แก้ว)', '🧃 ดื่มน้ำหวาน/ชาไข่มุก'].map((opt) => {
+                      const isSel = waterOpt === opt
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => {
+                            sound.playPop()
+                            setWaterOpt(opt)
+                            setStepError('')
+                          }}
+                          style={{
+                            border: isSel ? '2px solid var(--text-brown)' : '1.5px solid var(--card-border)',
+                            background: isSel ? 'var(--accent-sage)' : '#FFFDF9',
+                            color: 'var(--text-brown)',
+                            padding: '10px 16px',
+                            borderRadius: 99,
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-body)',
+                            fontWeight: isSel ? 600 : 400,
+                            boxShadow: isSel ? '0 2px 8px rgba(91, 74, 63, 0.12)' : 'none',
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: ใจ (เรื่องกังวลใจ + ต้องการพูดคุยครู) */}
+            {wizardStep === 2 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'fadeUp 0.25s ease forwards' }}>
+                {/* 2a: เรื่องกังวลใจ */}
+                <div style={{ background: 'rgba(255, 255, 255, 0.92)', border: concerns.length === 0 && stepError ? '2px solid #FFB5B5' : '1.5px solid var(--card-border)', borderRadius: 24, padding: 18 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-brown)', marginBottom: 6 }}>
+                    💭 วันนี้มีเรื่องกังวลใจไหม? {concerns.length === 0 && <span style={{ color: '#E57373', fontSize: 13 }}>*</span>}
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-brown-light)', marginBottom: 14 }}>
+                    เลือกได้มากกว่า 1 ข้อ (ข้อมูลนี้เป็นความลับเฉพาะครูแนะแนว)
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {[
+                      '📚 เรื่องเรียน/การสอบ',
+                      '👥 ความสัมพันธ์กับเพื่อน',
+                      '💖 เรื่องความรัก/คนคุย',
+                      '🏡 เรื่องที่บ้าน/ครอบครัว',
+                      '🩺 สุขภาพร่างกาย',
+                      '⏳ กังวลเรื่องอนาคต',
+                      '✨ ไม่มีเรื่องกังวล',
+                    ].map((item) => {
+                      const isSel = concerns.includes(item)
+                      return (
+                        <button
+                          key={item}
+                          onClick={() => toggleConcern(item)}
+                          style={{
+                            border: isSel ? '2px solid var(--text-brown)' : '1.5px solid var(--card-border)',
+                            background: isSel ? 'var(--accent-sage)' : '#FFFDF9',
+                            color: 'var(--text-brown)',
+                            padding: '10px 16px',
+                            borderRadius: 99,
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-body)',
+                            fontWeight: isSel ? 600 : 400,
+                            boxShadow: isSel ? '0 2px 8px rgba(91, 74, 63, 0.12)' : 'none',
+                          }}
+                        >
+                          {item}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 2b: ต้องการพูดคุยกับครูแนะแนว */}
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.92)',
+                    border: '1.5px solid var(--card-border)',
+                    borderRadius: 24,
+                    padding: 18,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+                      👩‍🏫 ต้องการพูดคุยกับครูแนะแนว
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-brown-light)' }}>
+                      ครูจะได้รับการแจ้งเตือนและติดต่อกลับ
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={teacherSignal}
+                    onChange={(e) => {
+                      sound.playPop()
+                      setTeacherSignal(e.target.checked)
+                    }}
+                    style={{ width: 22, height: 22, cursor: 'pointer', accentColor: 'var(--text-brown)' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons: ย้อนกลับ (ทำได้ตลอดเวลา) / ถัดไป / ส่งคำตอบ */}
+            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <button
+                onClick={handlePrevWizardStep}
+                style={{
+                  flex: 1,
+                  background: '#FFFDF9',
+                  border: '2px solid var(--text-brown)',
+                  borderRadius: 20,
+                  padding: '14px',
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 16,
+                  color: 'var(--text-brown)',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                ย้อนกลับ
+              </button>
+
+              {wizardStep < 2 ? (
+                <button
+                  onClick={handleNextWizardStep}
+                  style={{
+                    flex: 2,
+                    background: 'linear-gradient(135deg, var(--accent-peach) 0%, var(--accent-pink) 100%)',
+                    border: '2px solid var(--text-brown)',
+                    borderRadius: 20,
+                    padding: '14px',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: 'var(--text-brown)',
+                    boxShadow: '0 4px 0 var(--text-brown)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ถัดไป ➔
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (concerns.length === 0) {
+                      sound.playPop()
+                      setStepError('กรุณาเลือกอย่างน้อย 1 ข้อ (หรือเลือก "✨ ไม่มีเรื่องกังวล") นะครับ')
+                      return
+                    }
+                    void handleSubmitDiary()
+                  }}
+                  disabled={saving}
+                  style={{
+                    flex: 2,
+                    background: 'linear-gradient(135deg, var(--accent-peach) 0%, #FF9AA2 100%)',
+                    border: '2px solid var(--text-brown)',
+                    borderRadius: 20,
+                    padding: '14px',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: 'var(--text-brown)',
+                    boxShadow: '0 4px 0 var(--text-brown)',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {saving ? 'กำลังบันทึก...' : 'ส่งคำตอบ 🎉'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB 3: โหลความรู้สึก & ระบายใจ (Gratitude & Feelings Jar)
+        ======================================================== */}
+        {activeTab === 3 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'fadeUp 0.35s ease forwards' }}>
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.92)',
+                border: '1.5px solid var(--card-border)',
+                borderRadius: 24,
+                padding: 24,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 16,
+              }}
+            >
+              <div style={{ fontSize: 56 }}>🫙</div>
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+                  โหลความรู้สึก & ระบายใจ
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-brown-light)', marginTop: 4 }}>
+                  ระบายความรู้สึกในใจ เรื่องที่ภูมิใจ หรือสิ่งดีๆ ที่เกิดขึ้น วันที่เหนื่อยล้าสามารถเปิดอ่านได้เสมอ
+                </p>
+              </div>
+              <textarea
+                value={gratitudeText}
+                onChange={(e) => setGratitudeText(e.target.value)}
+                placeholder="ระบายความรู้สึก สิ่งดีๆ หรือเรื่องที่ภูมิใจในตัวเอง..."
+                style={{
+                  width: '100%',
+                  height: 90,
+                  border: '2px solid var(--card-border)',
+                  borderRadius: 16,
+                  padding: 12,
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 14,
+                  color: 'var(--text-brown)',
+                  background: '#FFFDF9',
+                  resize: 'none',
+                  outline: 'none',
+                }}
+              />
+              <button
+                onClick={saveToJar}
+                style={{
+                  background: 'var(--accent-sage)',
+                  border: '1.5px solid var(--text-brown)',
+                  color: 'var(--text-brown)',
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  padding: '10px 24px',
+                  borderRadius: 99,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(91,74,63,0.1)',
+                }}
+              >
+                🌸 หยอดลงโหลความรู้สึก
+              </button>
+
+              {/* ข้อความที่หยอดไว้ในโหล */}
+              {jarNotes.length > 0 && (
+                <div style={{ width: '100%', marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+                    เรื่องดีๆ และความรู้สึกที่หยอดไว้ในโหล:
+                  </p>
+                  {jarNotes.map((note, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: '#FFFDF9',
+                        border: '1.5px solid var(--card-border)',
+                        borderRadius: 14,
+                        padding: '10px 14px',
+                        fontSize: 13,
+                        color: 'var(--text-brown)',
+                        animation: 'fadeUp 0.3s ease both',
+                      }}
+                    >
+                      📝 {note.text}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB 4 / RESULT: แสดงผลไฟ Streak ฉลองความสำเร็จ!
+        ======================================================== */}
+        {activeTab === 4 && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, textAlign: 'center', animation: 'fadeUp 0.4s ease forwards' }}>
+            {/* Fire Animation Stage */}
+            <div style={{ position: 'relative', width: 180, height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '20px 0 10px' }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  width: 170,
+                  height: 170,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(255, 154, 162, 0.5) 0%, rgba(255, 218, 184, 0.4) 60%, transparent 80%)',
+                  filter: 'blur(20px)',
+                  animation: 'pulseGlow 2s ease-in-out infinite alternate',
+                }}
+              />
+              <div style={{ fontSize: 96, position: 'relative', zIndex: 2, animation: 'fireBounce 1.5s ease-in-out infinite alternate' }}>
+                🔥
+              </div>
+            </div>
+
+            {/* Streak Number Badge */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #FFF0E5 0%, #FFE4E6 100%)',
+                border: '2px solid var(--text-brown)',
+                borderRadius: 99,
+                padding: '10px 28px',
+                boxShadow: '0 6px 16px rgba(217, 107, 39, 0.2)',
+              }}
+            >
+              <h2 style={{ fontSize: 26, fontWeight: 700, color: '#D96B27', fontFamily: 'var(--font-display)', margin: 0 }}>
+                🔥 บันทึกต่อเนื่อง {profile?.streak ?? 1} วันติด!
+              </h2>
+            </div>
+
+            {/* Congratulatory Card */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1.5px solid var(--card-border)', borderRadius: 24, padding: 24, width: '100%', boxShadow: '0 8px 24px rgba(91,74,63,0.08)' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)', marginBottom: 6 }}>
+                ยอดเยี่ยมมาก {profile ? profile.full_name.split(' ')[0] : ''}! 💖
+              </h3>
+              <p style={{ fontSize: 14, color: 'var(--text-brown-light)', lineHeight: 1.6 }}>
+                คุณได้บันทึกความรู้สึกและดูแลสุขภาพใจในวันนี้เรียบร้อยแล้ว ได้รับ <strong>+15 Heart Energy</strong> ประจำวัน
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={() => {
+                      sound.playClick()
+                      setActiveTab(3)
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: 99,
+                      border: '1.5px solid var(--text-brown)',
+                      background: 'var(--accent-sage)',
+                      color: 'var(--text-brown)',
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🫙 โหลความรู้สึก
+                  </button>
+                  <button
+                    onClick={() => {
+                      sound.playClick()
+                      setActiveTab(5)
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: 99,
+                      border: '1.5px solid var(--text-brown)',
+                      background: '#EEF0F8',
+                      color: 'var(--text-brown)',
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📖 บันทึกของฉัน
+                  </button>
+                </div>
+                {!alreadyDone && (
+                  <button
+                    onClick={() => {
+                      sound.playClick()
+                      setActiveTab(1)
+                    }}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: 99,
+                      border: '1.5px solid var(--card-border)',
+                      background: 'transparent',
+                      color: 'var(--text-brown-light)',
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🏠 กลับหน้าแรก
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB 5: บันทึกจากโหลความรู้สึก (Journal History)
+        ======================================================== */}
+        {activeTab === 5 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'fadeUp 0.35s ease forwards' }}>
+            {/* Header */}
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)', marginBottom: 4 }}>
+                📖 บันทึกของฉัน
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--text-brown-light)' }}>
+                ข้อความที่หยอดลงโหลความรู้สึกทั้งหมด
+              </p>
+            </div>
+
+            {/* Stats row */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.92)',
+                border: '1.5px solid var(--card-border)',
+                borderRadius: 20,
+                padding: '14px 20px',
+                display: 'flex',
+                gap: 0,
+              }}
+            >
+              {[
+                { label: 'บันทึก', value: jarNotes.length },
+                { label: 'เช็คอิน', value: profile?.streak ?? 0 },
+              ].map((stat, i) => (
+                <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < 1 ? '1.5px solid var(--card-border)' : 'none' }}>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+                    {stat.value}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-brown-light)', marginTop: 2 }}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Journal entries list */}
+            {jarNotes.length === 0 ? (
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.7)',
+                  border: '1.5px dashed var(--card-border)',
+                  borderRadius: 24,
+                  padding: '40px 24px',
+                  textAlign: 'center',
+                  color: 'var(--text-brown-light)',
+                }}
+              >
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🫙</div>
+                <p style={{ fontFamily: 'var(--font-display)', fontSize: 15 }}>ยังไม่มีบันทึก</p>
+                <p style={{ fontSize: 13, marginTop: 4 }}>ลองไปหยอดความรู้สึกลงโหลดูสิ!</p>
+                <button
+                  onClick={() => { sound.playClick(); setActiveTab(3) }}
+                  style={{
+                    marginTop: 16,
+                    padding: '10px 24px',
+                    borderRadius: 99,
+                    border: '1.5px solid var(--text-brown)',
+                    background: 'var(--accent-sage)',
+                    color: 'var(--text-brown)',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🫙 ไปที่โหลความรู้สึก
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Group by date – simple approach: show date header when day changes */}
+                {jarNotes.map((note, idx) => {
+                  const noteDate = note.date
+                  const prev = idx > 0 ? jarNotes[idx - 1].date : null
+                  const showDateHeader =
+                    !prev ||
+                    noteDate.getDate() !== prev.getDate() ||
+                    noteDate.getMonth() !== prev.getMonth()
+                  const dayNames = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
+                  const dateLabel = `${noteDate.getDate()} ${['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][noteDate.getMonth()]} ${noteDate.getFullYear() + 543}`
+                  const timeLabel = `${noteDate.getHours().toString().padStart(2,'0')}:${noteDate.getMinutes().toString().padStart(2,'0')} น.`
+                  const dayLabel = dayNames[noteDate.getDay()]
+                  return (
+                    <div key={idx}>
+                      {showDateHeader && (
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6, marginTop: idx > 0 ? 8 : 0 }}>
+                          <span
+                            style={{
+                              background: 'var(--text-brown)',
+                              color: '#FFF8EF',
+                              borderRadius: 12,
+                              padding: '2px 12px',
+                              fontSize: 13,
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-display)',
+                              letterSpacing: '0.5px',
+                            }}
+                          >
+                            {noteDate.toDateString() === new Date().toDateString() ? 'วันนี้' : dateLabel}
+                          </span>
+                          <span style={{ fontSize: 12, color: 'var(--text-brown-light)', fontFamily: 'var(--font-display)' }}>
+                            {dayLabel}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.92)',
+                          border: '1.5px solid var(--card-border)',
+                          borderRadius: 20,
+                          padding: '14px 18px',
+                          display: 'flex',
+                          gap: 12,
+                          alignItems: 'flex-start',
+                          animation: 'fadeUp 0.3s ease both',
+                          boxShadow: '0 2px 8px rgba(91,74,63,0.04)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: '50%',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            border: '1.5px solid var(--card-border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {note.mood ? (
+                            <Image
+                              src={`/moodpics/${note.mood}.svg`}
+                              alt={note.mood}
+                              width={34}
+                              height={34}
+                              unoptimized
+                              style={{ objectFit: 'contain' }}
+                            />
+                          ) : (
+                            <span style={{ fontSize: 22 }}>📝</span>
+                          )}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 14, color: 'var(--text-brown)', lineHeight: 1.6, margin: 0, fontFamily: 'var(--font-body)' }}>
+                            {note.text}
+                          </p>
+                          <p style={{ fontSize: 12, color: 'var(--text-brown-light)', marginTop: 4 }}>
+                            {timeLabel}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      <style jsx global>{`
+        @keyframes pulseGlow {
+          from { transform: scale(0.9); opacity: 0.7; }
+          to { transform: scale(1.15); opacity: 1; }
+        }
+        @keyframes fireBounce {
+          from { transform: translateY(0) scale(0.96); }
+          to { transform: translateY(-8px) scale(1.05); }
+        }
+      `}</style>
     </div>
   )
 }

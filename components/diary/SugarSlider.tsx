@@ -1,7 +1,4 @@
-
 // SugarSlider.tsx - สไลเดอร์สำหรับบันทึกปริมาณน้ำหวานในหน้า Diary
-
-
 'use client'
 import { useState } from 'react'
 
@@ -44,12 +41,12 @@ export default function SugarSlider({ onChange }: SugarSliderProps) {
           type="range" min="0" max="4" step="1"
           value={val ?? 2}
           onChange={handleChange}
-          style={{ width: '100%', appearance: 'none' as any, background: 'transparent', cursor: 'pointer', height: 22, position: 'relative' }}
+          style={{ width: '100%', appearance: 'none', WebkitAppearance: 'none', background: 'transparent', cursor: 'pointer', height: 22, position: 'relative' }}
         />
       </div>
       <div style={{ minWidth: 88, textAlign: 'right' }}>
         {current ? (
-          <span style={{ fontSize: 11, fontWeight: 500, color: current.color, background: current.color + '18', padding: '3px 8px', borderRadius: 99, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 500, color: current.color, background: `${current.color}18`, padding: '3px 8px', borderRadius: 99, whiteSpace: 'nowrap' }}>
             {current.emoji} {current.pct}% {current.pts > 0 ? `+${current.pts}pt` : '0pt'}
           </span>
         ) : (
@@ -57,8 +54,7 @@ export default function SugarSlider({ onChange }: SugarSliderProps) {
         )}
       </div>
       <style>{`
-        input[type=range]::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 0 10px rgba(167,139,250,0.5), 0 2px 4px rgba(0,0,0,0.3); cursor: pointer; }
-        input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 99px; background: rgba(255,255,255,0.08); }
+        input[type=range]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 0 10px rgba(167,139,250,0.5), 0 2px 4px rgba(0,0,0,0.3); cursor: pointer; }
       `}</style>
     </div>
   )

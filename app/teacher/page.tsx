@@ -1,84 +1,26 @@
-// teacher dashboard - สำหรับครูแนะแนวดูภาพรวมและรายงานต่างๆ
+// app/teacher/page.tsx - Teacher Dashboard (Warm Pastel Design System 100% ตาม Prototype)
 'use client'
-import { useState, useEffect } from 'react'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '../../lib/supabase'
 import { getRoomSummaryToday, getAtRiskStudents, getBehaviorStats, getDailyStats } from '../../lib/supabase-teacher'
-
-const TEACHER_PASSWORD = '1234'
-
-function PasswordGate({ onAuth }: { onAuth: () => void }) {
-  const [pw, setPw] = useState('')
-  const [error, setError] = useState('')
-  const [shake, setShake] = useState(false)
-
-  const submit = () => {
-    if (pw === TEACHER_PASSWORD) {
-      onAuth()
-    } else {
-      setError('รหัสผ่านไม่ถูกต้อง')
-      setShake(true)
-      setTimeout(() => setShake(false), 500)
-      setPw('')
-    }
-  }
-
-  return (
-    <div style={{ maxWidth: 360, margin: '0 auto', padding: '80px 24px', textAlign: 'center', fontFamily: 'var(--font-body)', animation: 'fadeUp 0.5s ease both' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 400, marginBottom: 8 }}>
-        <span className="grad-text">Teacher Dashboard</span>
-      </h1>
-      <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 32 }}>กรุณากรอกรหัสผ่านสำหรับครู</p>
-
-      <div style={{ animation: shake ? 'shakeX 0.4s ease' : 'none' }}>
-        <input
-          type="password" value={pw}
-          onChange={e => setPw(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && submit()}
-          placeholder="รหัสผ่าน"
-          style={{
-            width: '100%', padding: '14px', borderRadius: 12, marginBottom: 12,
-            background: 'rgba(255,255,255,0.07)',
-            border: `1px solid ${error ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.12)'}`,
-            fontSize: 18, textAlign: 'center', letterSpacing: '0.3em',
-            color: 'var(--text-primary)', fontFamily: 'var(--font-body)', outline: 'none',
-          }}
-        />
-        {error && <p style={{ fontSize: 12, color: '#f87171', marginBottom: 12 }}>{error}</p>}
-        <button onClick={submit} style={{
-          width: '100%', padding: '13px', borderRadius: 12, border: 'none',
-          background: 'linear-gradient(135deg, #a78bfa, #ec4899)',
-          color: 'white', fontSize: 15, fontWeight: 500,
-          fontFamily: 'var(--font-body)', cursor: 'pointer',
-        }}>
-          เข้าสู่ระบบ
-        </button>
-      </div>
-      <style>{`@keyframes shakeX { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }`}</style>
-    </div>
-  )
-}
+import type { RoomSummary, AtRiskStudent, BehaviorStats, DailyStats, Profile } from '../../types/database'
 
 export default function TeacherDashboard() {
-  const [authed, setAuthed] = useState(false)
+  const router = useRouter()
   const [tab, setTab] = useState<'overview' | 'rooms' | 'alerts'>('overview')
-  const [stats, setStats] = useState({ totalStudents: 0, entriesCount: 0, completeCount: 0, atRiskCount: 0 })
-  const [rooms, setRooms] = useState<any[]>([])
-  const [alerts, setAlerts] = useState<any[]>([])
-  const [behaviors, setBehaviors] = useState<any[]>([])
-  const [loadingData, setLoadingData] = useState(false)
+  const [stats, setStats] = useState<DailyStats>({ totalStudents: 0, entriesCount: 0, completeCount: 0, atRiskCount: 0 })
+  const [rooms, setRooms] = useState<RoomSummary[]>([])
+  const [alerts, setAlerts] = useState<AtRiskStudent[]>([])
+  const [behaviors, setBehaviors] = useState<BehaviorStats[]>([])
+  const [teacherProfile, setTeacherProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [accessDenied, setAccessDenied] = useState(false)
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('teacher_auth') === '1') {
-      setAuthed(true)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (authed) loadAll()
-  }, [authed])
-
-  async function loadAll() {
-    setLoadingData(true)
+  const loadDashboardData = useCallback(async () => {
+    setRefreshing(true)
     try {
       const [s, r, a, b] = await Promise.all([
         getDailyStats(),
@@ -90,162 +32,409 @@ export default function TeacherDashboard() {
       setRooms(r)
       setAlerts(a)
       setBehaviors(b)
-    } catch (e) { console.error(e) }
-    setLoadingData(false)
+    } catch (e) {
+      console.error('โหลดข้อมูลสถิติไม่สำเร็จ:', e)
+    }
+    setRefreshing(false)
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const checkTeacherAuth = async () => {
+      setLoading(true)
+
+      // 1. ตรวจสอบสถานะครูผ่าน API Session ก่อน
+      try {
+        const res = await fetch('/api/auth/teacher-me')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.authenticated) {
+            setTeacherProfile({
+              id: 'teacher-master',
+              full_name: data.fullName || 'ครูแนะแนว (ผู้ดูแลระบบ)',
+              room: 'ห้องแนะแนว',
+              role: 'teacher',
+              total_points: 0,
+              streak: 0,
+            })
+            await loadDashboardData()
+            if (isMounted) setLoading(false)
+            return
+          }
+        }
+      } catch (err) {
+        console.warn('Teacher session check error:', err)
+      }
+
+      // 2. Fallback ตรวจสอบผ่าน Supabase Auth
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!isMounted) return
+
+      if (!user) {
+        router.push('/login?redirect=/teacher')
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (!isMounted) return
+
+      if (!profile || profile.role !== 'teacher') {
+        setAccessDenied(true)
+        setLoading(false)
+        return
+      }
+
+      setTeacherProfile(profile as Profile)
+      await loadDashboardData()
+      setLoading(false)
+    }
+
+    void checkTeacherAuth()
+    return () => {
+      isMounted = false
+    }
+  }, [router, loadDashboardData])
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/teacher-logout', { method: 'POST' })
+    } catch { /* ignore */ }
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
   }
 
-  const handleAuth = () => {
-    if (typeof window !== 'undefined') sessionStorage.setItem('teacher_auth', '1')
-    setAuthed(true)
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-cream)', color: 'var(--text-brown-light)', fontFamily: 'var(--font-body)' }}>
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>กำลังเปิดระบบแดชบอร์ดครู... 👩‍🏫</p>
+      </div>
+    )
   }
 
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') sessionStorage.removeItem('teacher_auth')
-    setAuthed(false)
+  if (accessDenied) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-cream)', padding: 16 }}>
+        <div style={{ maxWidth: 420, width: '100%', background: 'rgba(255, 255, 255, 0.9)', border: '1.5px solid var(--card-border)', borderRadius: 24, padding: '32px 24px', textAlign: 'center', boxShadow: '0 10px 30px rgba(91,74,63,0.1)' }}>
+          <div style={{ fontSize: 44, marginBottom: 14 }}>🚫</div>
+          <h2 style={{ fontSize: 20, color: '#c0392b', marginBottom: 8, fontFamily: 'var(--font-display)' }}>ไม่มีสิทธิ์เข้าถึง</h2>
+          <p style={{ fontSize: 14, color: 'var(--text-brown-light)', marginBottom: 20 }}>
+            หน้านี้สงวนไว้สำหรับครูแนะแนวและบุคลากรของโรงเรียนเท่านั้น
+          </p>
+          <button
+            onClick={() => router.push('/diary')}
+            style={{
+              padding: '10px 22px',
+              borderRadius: 99,
+              border: '2px solid var(--text-brown)',
+              background: 'var(--accent-peach)',
+              color: 'var(--text-brown)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 600,
+            }}
+          >
+            กลับไปหน้าไดอารี่นักเรียน
+          </button>
+        </div>
+      </div>
+    )
   }
-
-  if (!authed) return <PasswordGate onAuth={handleAuth} />
 
   return (
-    <div style={{ maxWidth: 620, margin: '0 auto', padding: '24px 16px 48px', fontFamily: 'var(--font-body)', animation: 'fadeUp 0.5s ease both' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', background: 'var(--bg-cream)', fontFamily: 'var(--font-body)' }}>
+      {/* Top Navbar */}
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          background: 'rgba(255, 248, 239, 0.95)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '2px solid var(--card-border)',
+          padding: '12px 24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          width: '100%',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg viewBox="0 0 40 40" fill="none" style={{ width: 36, height: 36 }}>
+            <rect width="40" height="40" rx="12" fill="#FFC7D1" />
+            <path
+              d="M20 31.5C20 31.5 8 23.5 8 15.5C8 11.5 11 8.5 15 8.5C17.5 8.5 19.2 9.8 20 11C20.8 9.8 22.5 8.5 25 8.5C29 8.5 32 11.5 32 15.5C32 23.5 20 31.5 20 31.5Z"
+              fill="#5B4A3F"
+            />
+          </svg>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: 'var(--text-brown)' }}>
+            Heartful <span style={{ fontSize: 16, fontWeight: 400, color: 'var(--text-brown-light)' }}>· ครูแนะแนว</span>
+          </span>
+        </div>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <p style={{ fontSize: 12, color: 'var(--text-hint)', marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {teacherProfile && (
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+              👤 {teacherProfile.full_name}
+            </span>
+          )}
+          <button
+            onClick={loadDashboardData}
+            disabled={refreshing}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 99,
+              border: '1.5px solid var(--card-border)',
+              background: '#FFFDF9',
+              color: 'var(--text-brown)',
+              fontSize: 13,
+              cursor: refreshing ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font-display)',
+            }}
+          >
+            {refreshing ? 'กำลังโหลด...' : '↻ รีเฟรช'}
+          </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 99,
+              border: '1.5px solid var(--card-border)',
+              background: '#FFFDF9',
+              color: 'var(--text-brown-light)',
+              fontSize: 13,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-display)',
+            }}
+          >
+            🚪 ออก
+          </button>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main style={{ flex: 1, width: '100%', maxWidth: 720, margin: '0 auto', padding: '24px 16px 60px' }}>
+
+        {/* Date header */}
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-brown-light)' }}>
             {new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 400 }}>
-            Dashboard <span className="grad-text">ครูแนะแนว</span>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: 'var(--text-brown)', marginTop: 2 }}>
+            แดชบอร์ดติดตามสุขภาพใจนักเรียน 📊
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={loadAll} disabled={loadingData} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-            {loadingData ? 'กำลังโหลด...' : '↻ รีเฟรช'}
-          </button>
-          <button onClick={handleLogout} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(248,113,113,0.2)', background: 'rgba(248,113,113,0.08)', color: '#f87171', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-            ออกจากระบบ
-          </button>
-        </div>
-      </div>
 
-      {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
-        {[
-          { num: stats.entriesCount,  label: 'บันทึกแล้ววันนี้', sub: `จาก ${stats.totalStudents} คน`, color: '#99f6e4' },
-          { num: stats.completeCount, label: 'หัวใจเต็ม ❤',      sub: 'mission complete',             color: '#f9a8d4' },
-          { num: stats.atRiskCount,   label: 'ต้องดูแล ⚠',       sub: 'ไม่บันทึก 3+ วัน',             color: '#f87171' },
-        ].map((s, i) => (
-          <div key={i} className="glass" style={{ padding: '14px 10px', textAlign: 'center' }}>
-            <div style={{ fontSize: 26, fontWeight: 500, color: s.color }}>{loadingData ? '...' : s.num}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>{s.label}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-hint)', marginTop: 2 }}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 4 }}>
-        {(['overview', 'rooms', 'alerts'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            flex: 1, padding: '9px 6px', borderRadius: 9, border: 'none',
-            background: tab === t ? 'rgba(167,139,250,0.18)' : 'transparent',
-            color: tab === t ? 'var(--purple-soft)' : 'var(--text-hint)',
-            fontSize: 13, fontWeight: tab === t ? 500 : 400,
-            cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'var(--font-body)',
-          }}>
-            {t === 'overview' ? 'ภาพรวม' : t === 'rooms' ? 'รายห้อง' : `แจ้งเตือน${stats.atRiskCount > 0 ? ` (${stats.atRiskCount})` : ''}`}
-          </button>
-        ))}
-      </div>
-
-      {/* Overview */}
-      {tab === 'overview' && (
-        <div style={{ animation: 'fadeUp 0.3s ease both' }}>
-          <div className="glass" style={{ padding: '18px', marginBottom: 12 }}>
-            <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 14, color: 'var(--text-secondary)' }}>📊 พฤติกรรมยอดนิยม (7 วันที่ผ่านมา)</p>
-            {loadingData ? (
-              <p style={{ fontSize: 13, color: 'var(--text-hint)', textAlign: 'center' }}>กำลังโหลด...</p>
-            ) : behaviors.length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--text-hint)', textAlign: 'center' }}>ยังไม่มีข้อมูล</p>
-            ) : behaviors.map((b, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 170, flexShrink: 0 }}>{b.label}</span>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.07)', borderRadius: 99, height: 7 }}>
-                  <div style={{ width: `${b.pct}%`, height: 7, borderRadius: 99, background: b.color, transition: 'width 0.8s' }} />
-                </div>
-                <span style={{ fontSize: 11, color: b.color, width: 34, textAlign: 'right', fontWeight: 500 }}>{b.pct}%</span>
+        {/* Stat Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+          {[
+            { num: stats.entriesCount, label: 'บันทึกแล้ววันนี้', sub: `จาก ${stats.totalStudents} คน`, bg: '#FFF0E5', color: '#D96B27' },
+            { num: stats.completeCount, label: 'หัวใจเต็มดวง ❤️', sub: 'mission complete', bg: '#FFFDF9', color: 'var(--text-brown)' },
+            { num: stats.atRiskCount, label: 'ต้องติดตาม ⚠️', sub: 'ไม่บันทึก 3+ วัน', bg: '#FFF0F0', color: '#c0392b' },
+          ].map((s, i) => (
+            <div
+              key={i}
+              style={{
+                background: s.bg,
+                border: '1.5px solid var(--card-border)',
+                borderRadius: 20,
+                padding: '16px 12px',
+                textAlign: 'center',
+                boxShadow: '0 4px 12px rgba(91,74,63,0.06)',
+              }}
+            >
+              <div style={{ fontSize: 28, fontWeight: 700, color: s.color, fontFamily: 'var(--font-display)' }}>
+                {refreshing ? '...' : s.num}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Rooms */}
-      {tab === 'rooms' && (
-        <div style={{ animation: 'fadeUp 0.3s ease both', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {loadingData ? (
-            <p style={{ fontSize: 13, color: 'var(--text-hint)', textAlign: 'center', padding: '20px 0' }}>กำลังโหลด...</p>
-          ) : rooms.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--text-hint)', textAlign: 'center', padding: '20px 0' }}>ยังไม่มีข้อมูลห้อง</p>
-          ) : rooms.map(r => {
-            const donePct = r.total > 0 ? Math.round((r.done / r.total) * 100) : 0
-            return (
-              <div key={r.name} className="glass" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 14, fontWeight: 500, width: 60, color: 'var(--text-primary)' }}>{r.name}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 99, height: 8 }}>
-                    <div style={{ width: `${donePct}%`, height: 8, borderRadius: 99, background: donePct >= 80 ? 'linear-gradient(to right, #c4b5fd, #f9a8d4)' : donePct >= 60 ? '#c4b5fd' : '#fb923c', transition: 'width 0.6s' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: 'var(--text-hint)' }}>
-                    <span>{r.done}/{r.total} บันทึก</span>
-                    <span style={{ color: '#f9a8d4' }}>❤ {r.complete} complete</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 48, justifyContent: 'flex-end' }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: donePct >= 80 ? '#99f6e4' : '#f87171' }}>{donePct}%</span>
-                  {donePct < 60 && <span style={{ background: '#f87171', color: 'white', borderRadius: 99, fontSize: 9, fontWeight: 500, padding: '2px 6px' }}>⚠</span>}
-                </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-brown)', marginTop: 4, fontFamily: 'var(--font-display)' }}>
+                {s.label}
               </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Alerts */}
-      {tab === 'alerts' && (
-        <div style={{ animation: 'fadeUp 0.3s ease both' }}>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>นักเรียนที่ไม่บันทึก 3 วันขึ้นไป</p>
-          {loadingData ? (
-            <p style={{ fontSize: 13, color: 'var(--text-hint)', textAlign: 'center', padding: '20px 0' }}>กำลังโหลด...</p>
-          ) : alerts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 24px', color: 'var(--text-hint)', fontSize: 14 }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
-              ไม่มีนักเรียนกลุ่มเสี่ยงในขณะนี้
+              <div style={{ fontSize: 11, color: 'var(--text-brown-light)', marginTop: 2 }}>{s.sub}</div>
             </div>
-          ) : alerts.map((a, i) => {
-            const days = a.days_since_last_entry ?? 0
-            const isUrgent = days >= 5
-            const color = isUrgent ? '#f87171' : days >= 3 ? '#fb923c' : '#facc15'
-            return (
-              <div key={i} className="glass" style={{ padding: '12px 16px', marginBottom: 8, borderLeft: `3px solid ${color}`, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 99, background: color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                  {isUrgent ? '😶' : '📉'}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{a.full_name}</p>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                    {a.room}{a.student_number ? ` · เลขที่ ${a.student_number}` : ''} · {a.last_diary_date ? `ไม่บันทึก ${days} วัน` : 'ยังไม่เคยบันทึก'}
-                  </p>
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 500, color, background: color + '18', padding: '4px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>
-                  {isUrgent ? 'ติดต่อด่วน' : 'ติดตาม'}
-                </span>
-              </div>
-            )
-          })}
+          ))}
         </div>
-      )}
+
+        {/* Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+            marginBottom: 20,
+            background: 'rgba(255, 255, 255, 0.7)',
+            border: '1px solid var(--card-border)',
+            borderRadius: 16,
+            padding: 4,
+          }}
+        >
+          {(['overview', 'rooms', 'alerts'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                flex: 1,
+                padding: '10px 8px',
+                borderRadius: 12,
+                border: 'none',
+                background: tab === t ? 'var(--text-brown)' : 'transparent',
+                color: tab === t ? '#FFF8EF' : 'var(--text-brown-light)',
+                fontSize: 14,
+                fontWeight: tab === t ? 600 : 400,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'var(--font-display)',
+                boxShadow: tab === t ? '0 4px 12px rgba(91,74,63,0.2)' : 'none',
+              }}
+            >
+              {t === 'overview' ? 'ภาพรวม' : t === 'rooms' ? 'รายห้อง' : `แจ้งเตือน${stats.atRiskCount > 0 ? ` (${stats.atRiskCount})` : ''}`}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab 1: Overview */}
+        {tab === 'overview' && (
+          <div style={{ background: 'rgba(255, 255, 255, 0.9)', border: '1.5px solid var(--card-border)', borderRadius: 24, padding: 20, animation: 'fadeUp 0.3s ease both' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-brown)', marginBottom: 16, fontFamily: 'var(--font-display)' }}>
+              📈 สถิติพฤติกรรมสุขภาพกาย-ใจ 7 วันย้อนหลัง
+            </h3>
+            {behaviors.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-brown-light)', textAlign: 'center', padding: '24px 0' }}>
+                ยังไม่มีข้อมูลบันทึกในรอบ 7 วันที่ผ่านมา
+              </p>
+            ) : (
+              behaviors.map((b, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-brown)', width: 170, flexShrink: 0, fontWeight: 500 }}>
+                    {b.label}
+                  </span>
+                  <div style={{ flex: 1, background: '#EFE4D6', borderRadius: 99, height: 10, overflow: 'hidden' }}>
+                    <div style={{ width: `${b.pct}%`, height: '100%', borderRadius: 99, background: 'var(--text-brown)', transition: 'width 0.6s' }} />
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--text-brown)', width: 40, textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
+                    {b.pct}%
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Rooms */}
+        {tab === 'rooms' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, animation: 'fadeUp 0.3s ease both' }}>
+            {rooms.length === 0 ? (
+              <div style={{ background: 'rgba(255, 255, 255, 0.9)', border: '1.5px solid var(--card-border)', borderRadius: 24, padding: 32, textAlign: 'center', color: 'var(--text-brown-light)' }}>
+                ยังไม่มีข้อมูลห้องเรียนในระบบ
+              </div>
+            ) : (
+              rooms.map((r) => {
+                const donePct = r.total > 0 ? Math.round((r.done / r.total) * 100) : 0
+                return (
+                  <div
+                    key={r.name}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.9)',
+                      border: '1.5px solid var(--card-border)',
+                      borderRadius: 18,
+                      padding: '14px 18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 14,
+                    }}
+                  >
+                    <span style={{ fontSize: 15, fontWeight: 600, width: 70, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+                      ห้อง {r.name}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ background: '#EFE4D6', borderRadius: 99, height: 10, overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${donePct}%`,
+                            height: '100%',
+                            borderRadius: 99,
+                            background: donePct >= 80 ? 'var(--accent-sage-deep)' : donePct >= 50 ? 'var(--accent-peach-deep)' : '#FFB5B5',
+                            transition: 'width 0.6s',
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 12, color: 'var(--text-brown-light)' }}>
+                        <span>{r.done}/{r.total} บันทึกแล้ว</span>
+                        <span style={{ color: '#D96B27' }}>❤ {r.complete} complete</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)', minWidth: 44, textAlign: 'right' }}>
+                      {donePct}%
+                    </span>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Alerts */}
+        {tab === 'alerts' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, animation: 'fadeUp 0.3s ease both' }}>
+            <p style={{ fontSize: 13, color: 'var(--text-brown-light)', marginBottom: 4 }}>
+              นักเรียนที่ไม่บันทึกไดอารี่ 3 วันขึ้นไป (Real-time Detection)
+            </p>
+            {alerts.length === 0 ? (
+              <div style={{ background: 'rgba(255, 255, 255, 0.9)', border: '1.5px solid var(--card-border)', borderRadius: 24, padding: 36, textAlign: 'center', color: 'var(--text-brown-light)' }}>
+                <div style={{ fontSize: 44, marginBottom: 10 }}>🎉</div>
+                <h4 style={{ fontSize: 16, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>ไม่มีนักเรียนกลุ่มเสี่ยงในขณะนี้</h4>
+                <p style={{ fontSize: 13, marginTop: 4 }}>ทุกคนบันทึกและดูแลสุขภาพใจอย่างสม่ำเสมอ</p>
+              </div>
+            ) : (
+              alerts.map((a, i) => {
+                const days = a.days_since_last_entry ?? 0
+                const isUrgent = days >= 5
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      background: isUrgent ? '#FFF5F5' : 'rgba(255, 255, 255, 0.9)',
+                      border: `1.5px solid ${isUrgent ? '#FFB5B5' : 'var(--card-border)'}`,
+                      borderRadius: 18,
+                      padding: '14px 18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 14,
+                    }}
+                  >
+                    <div style={{ fontSize: 24 }}>{isUrgent ? '😶' : '📉'}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+                        {a.full_name} {a.student_id ? `(${a.student_id})` : ''}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-brown-light)', marginTop: 2 }}>
+                        ห้อง {a.room} {a.student_number ? `· เลขที่ ${a.student_number}` : ''} · {a.last_diary_date ? `ไม่บันทึก ${days} วัน` : 'ยังไม่เคยบันทึก'}
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-display)',
+                        color: isUrgent ? '#c0392b' : '#D96B27',
+                        background: isUrgent ? '#FFE5E5' : '#FFF0E5',
+                        padding: '4px 12px',
+                        borderRadius: 99,
+                      }}
+                    >
+                      {isUrgent ? 'ติดต่อด่วน' : 'ติดตาม'}
+                    </span>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
+      </main>
     </div>
   )
 }
