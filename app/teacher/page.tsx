@@ -154,61 +154,64 @@ export default function TeacherDashboard() {
         style={{
           position: 'sticky',
           top: 0,
-          zIndex: 100,
+          zIndex: 90,
           background: 'rgba(255, 248, 239, 0.95)',
           backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '2px solid var(--card-border)',
-          padding: '12px 24px',
+          padding: '10px 16px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
           width: '100%',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg viewBox="0 0 40 40" fill="none" style={{ width: 36, height: 36 }}>
-            <rect width="40" height="40" rx="12" fill="#FFC7D1" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg viewBox="0 0 40 40" fill="none" style={{ width: 32, height: 32 }}>
+            <rect width="40" height="40" rx="10" fill="#FFC7D1" />
             <path
               d="M20 31.5C20 31.5 8 23.5 8 15.5C8 11.5 11 8.5 15 8.5C17.5 8.5 19.2 9.8 20 11C20.8 9.8 22.5 8.5 25 8.5C29 8.5 32 11.5 32 15.5C32 23.5 20 31.5 20 31.5Z"
               fill="#5B4A3F"
             />
           </svg>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: 'var(--text-brown)' }}>
-            Heartful <span style={{ fontSize: 16, fontWeight: 400, color: 'var(--text-brown-light)' }}>· ครูแนะแนว</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, color: 'var(--text-brown)' }}>
+            Heartful <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--text-brown-light)' }}>· ครูแนะแนว</span>
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {teacherProfile && (
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
-              👤 {teacherProfile.full_name}
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>
+              👤 {teacherProfile.full_name.split(' ')[0]}
             </span>
           )}
           <button
             onClick={loadDashboardData}
             disabled={refreshing}
             style={{
-              padding: '6px 14px',
+              padding: '5px 12px',
               borderRadius: 99,
               border: '1.5px solid var(--card-border)',
               background: '#FFFDF9',
               color: 'var(--text-brown)',
-              fontSize: 13,
+              fontSize: 12.5,
               cursor: refreshing ? 'not-allowed' : 'pointer',
               fontFamily: 'var(--font-display)',
             }}
           >
-            {refreshing ? 'กำลังโหลด...' : '↻ รีเฟรช'}
+            {refreshing ? '...' : '↻ รีเฟรช'}
           </button>
           <button
             onClick={handleLogout}
             style={{
-              padding: '6px 14px',
+              padding: '5px 12px',
               borderRadius: 99,
               border: '1.5px solid var(--card-border)',
               background: '#FFFDF9',
               color: 'var(--text-brown-light)',
-              fontSize: 13,
+              fontSize: 12.5,
               cursor: 'pointer',
               fontFamily: 'var(--font-display)',
             }}
@@ -219,20 +222,20 @@ export default function TeacherDashboard() {
       </header>
 
       {/* Main Container */}
-      <main style={{ flex: 1, width: '100%', maxWidth: 720, margin: '0 auto', padding: '24px 16px 60px' }}>
+      <main style={{ flex: 1, width: '100%', maxWidth: 760, margin: '0 auto', padding: '20px 16px 60px' }}>
 
         {/* Date header */}
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 16 }}>
           <p style={{ fontSize: 13, color: 'var(--text-brown-light)' }}>
             {new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: 'var(--text-brown)', marginTop: 2 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600, color: 'var(--text-brown)', marginTop: 2 }}>
             แดชบอร์ดติดตามสุขภาพใจนักเรียน 📊
           </h1>
         </div>
 
-        {/* Stat Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+        {/* Stat Cards (Responsive Grid) */}
+        <div className="teacher-stats-grid">
           {[
             { num: stats.entriesCount, label: 'บันทึกแล้ววันนี้', sub: `จาก ${stats.totalStudents} คน`, bg: '#FFF0E5', color: '#D96B27' },
             { num: stats.completeCount, label: 'หัวใจเต็มดวง ❤️', sub: 'mission complete', bg: '#FFFDF9', color: 'var(--text-brown)' },
@@ -244,15 +247,15 @@ export default function TeacherDashboard() {
                 background: s.bg,
                 border: '1.5px solid var(--card-border)',
                 borderRadius: 20,
-                padding: '16px 12px',
+                padding: '14px 10px',
                 textAlign: 'center',
                 boxShadow: '0 4px 12px rgba(91,74,63,0.06)',
               }}
             >
-              <div style={{ fontSize: 28, fontWeight: 700, color: s.color, fontFamily: 'var(--font-display)' }}>
+              <div style={{ fontSize: 26, fontWeight: 700, color: s.color, fontFamily: 'var(--font-display)' }}>
                 {refreshing ? '...' : s.num}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-brown)', marginTop: 4, fontFamily: 'var(--font-display)' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-brown)', marginTop: 2, fontFamily: 'var(--font-display)' }}>
                 {s.label}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-brown-light)', marginTop: 2 }}>{s.sub}</div>
@@ -283,7 +286,7 @@ export default function TeacherDashboard() {
                 border: 'none',
                 background: tab === t ? 'var(--text-brown)' : 'transparent',
                 color: tab === t ? '#FFF8EF' : 'var(--text-brown-light)',
-                fontSize: 14,
+                fontSize: 13.5,
                 fontWeight: tab === t ? 600 : 400,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -298,7 +301,7 @@ export default function TeacherDashboard() {
 
         {/* Tab 1: Overview */}
         {tab === 'overview' && (
-          <div style={{ background: 'rgba(255, 255, 255, 0.9)', border: '1.5px solid var(--card-border)', borderRadius: 24, padding: 20, animation: 'fadeUp 0.3s ease both' }}>
+          <div style={{ background: 'rgba(255, 255, 255, 0.9)', border: '1.5px solid var(--card-border)', borderRadius: 24, padding: 18, animation: 'fadeUp 0.3s ease both' }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-brown)', marginBottom: 16, fontFamily: 'var(--font-display)' }}>
               📈 สถิติพฤติกรรมสุขภาพกาย-ใจ 7 วันย้อนหลัง
             </h3>
@@ -308,8 +311,8 @@ export default function TeacherDashboard() {
               </p>
             ) : (
               behaviors.map((b, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                  <span style={{ fontSize: 13, color: 'var(--text-brown)', width: 170, flexShrink: 0, fontWeight: 500 }}>
+                <div key={i} className="behavior-item">
+                  <span className="behavior-label">
                     {b.label}
                   </span>
                   <div style={{ flex: 1, background: '#EFE4D6', borderRadius: 99, height: 10, overflow: 'hidden' }}>

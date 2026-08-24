@@ -236,11 +236,12 @@ export default function DiaryPage() {
         style={{
           position: 'sticky',
           top: 0,
-          zIndex: 100,
+          zIndex: 90,
           background: 'rgba(255, 248, 239, 0.95)',
           backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '2px solid var(--card-border)',
-          padding: '12px 24px',
+          padding: '10px 16px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -248,36 +249,45 @@ export default function DiaryPage() {
         }}
       >
         {/* Brand Logo with App Favicon */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Image
             src="/favicon.svg"
             alt="Heartful"
-            width={36}
-            height={36}
+            width={32}
+            height={32}
             unoptimized
             style={{
-              borderRadius: 10,
+              borderRadius: 8,
               objectFit: 'contain',
             }}
           />
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: 'var(--text-brown)' }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600, color: 'var(--text-brown)' }}>
             Heartful
           </span>
         </div>
 
-        {/* Tab Switcher (ถ้าทำเช็คอินวันนี้แล้ว จะแสดงเฉพาะหน้า สรุป, โหล, บันทึก) */}
-        <nav style={{ display: 'flex', gap: 4, background: 'rgba(255, 255, 255, 0.8)', padding: 4, borderRadius: 99, border: '1px solid var(--card-border)' }}>
+        {/* Desktop Tab Switcher (ซ่อนบนมือถือเพื่อไม่ให้ล้นหน้าจอ) */}
+        <nav
+          className="desktop-nav"
+          style={{
+            gap: 4,
+            background: 'rgba(255, 255, 255, 0.85)',
+            padding: 4,
+            borderRadius: 99,
+            border: '1px solid var(--card-border)',
+          }}
+        >
           {(alreadyDone
             ? [
-                { id: 4, label: '🔥 สรุปวันนี้' },
-                { id: 3, label: '🫙 โหลความรู้สึก' },
-                { id: 5, label: '📖 บันทึก' },
+                { id: 4, label: 'สรุปวันนี้', icon: '🔥' },
+                { id: 3, label: 'โหลความรู้สึก', icon: '🫙' },
+                { id: 5, label: 'บันทึก', icon: '📖' },
               ]
             : [
-                { id: 1, label: '🏠 หน้าแรก' },
-                { id: 2, label: '📝 เช็คอิน' },
-                { id: 3, label: '🫙 โหลความรู้สึก' },
-                { id: 5, label: '📖 บันทึก' },
+                { id: 1, label: 'หน้าแรก', icon: '🏠' },
+                { id: 2, label: 'เช็คอิน', icon: '📝' },
+                { id: 3, label: 'โหลความรู้สึก', icon: '🫙' },
+                { id: 5, label: 'บันทึก', icon: '📖' },
               ]
           ).map((tab) => (
             <button
@@ -290,7 +300,7 @@ export default function DiaryPage() {
                 border: 'none',
                 background: activeTab === tab.id ? 'var(--text-brown)' : 'transparent',
                 color: activeTab === tab.id ? '#FFF8EF' : 'var(--text-brown-light)',
-                padding: '8px 12px',
+                padding: '8px 14px',
                 borderRadius: 99,
                 fontFamily: 'var(--font-display)',
                 fontSize: 13,
@@ -301,36 +311,64 @@ export default function DiaryPage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {tab.label}
+              {tab.icon} {tab.label}
             </button>
           ))}
         </nav>
 
-        {/* Logout Button */}
-        <button
-          onClick={handleLogout}
-          title="ออกจากระบบ"
-          style={{
-            border: '1.5px solid var(--card-border)',
-            background: '#FFFDF9',
-            color: 'var(--text-brown-light)',
-            padding: '6px 14px',
-            borderRadius: 99,
-            fontSize: 13,
-            fontFamily: 'var(--font-display)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            transition: 'all 0.2s',
-          }}
-        >
-          🚪 ออก
-        </button>
+        {/* Streak Pill & Logout Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              background: '#FFF0E5',
+              border: '1.5px solid var(--accent-peach)',
+              padding: '4px 10px',
+              borderRadius: 99,
+              fontFamily: 'var(--font-display)',
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: '#D96B27',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            🔥 {profile?.streak ?? 0}
+          </div>
+
+          <button
+            onClick={handleLogout}
+            title="ออกจากระบบ"
+            style={{
+              border: '1.5px solid var(--card-border)',
+              background: '#FFFDF9',
+              color: 'var(--text-brown-light)',
+              padding: '5px 12px',
+              borderRadius: 99,
+              fontSize: 12.5,
+              fontFamily: 'var(--font-display)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              transition: 'all 0.2s',
+            }}
+          >
+            🚪 ออก
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, width: '100%', maxWidth: 500, margin: '0 auto', padding: '24px 16px 60px' }}>
+      <main
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: 520,
+          margin: '0 auto',
+          padding: '20px 16px calc(88px + env(safe-area-inset-bottom, 16px))',
+        }}
+      >
 
         {/* ========================================================
             STEP 1 / TAB 1: หน้าแรก (Mood Picker & How do you feel today?)
@@ -455,7 +493,7 @@ export default function DiaryPage() {
               <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--text-brown-light)', marginBottom: 12, fontFamily: 'var(--font-display)' }}>
                 แตะสติกเกอร์ความรู้สึกวันนี้
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                 {MOOD_LIST.map((m) => {
                   const isSel = selectedMood === m.key
                   return (
@@ -463,34 +501,39 @@ export default function DiaryPage() {
                       key={m.key}
                       onClick={() => handleSelectMood(m.key)}
                       style={{
-                        background: isSel ? '#FFF0E5' : 'rgba(255, 255, 255, 0.9)',
+                        background: isSel ? '#FFF0E5' : 'rgba(255, 255, 255, 0.92)',
                         border: isSel ? '2px solid var(--text-brown)' : '1.5px solid var(--card-border)',
-                        borderRadius: 20,
-                        padding: '10px 4px',
+                        borderRadius: 18,
+                        padding: '8px 2px',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: 6,
+                        justifyContent: 'center',
+                        gap: 4,
                         cursor: 'pointer',
-                        transform: isSel ? 'scale(1.08)' : 'scale(1)',
+                        transform: isSel ? 'scale(1.06)' : 'scale(1)',
                         transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
                         boxShadow: isSel ? '0 6px 16px rgba(91, 74, 63, 0.18)' : '0 2px 6px rgba(91,74,63,0.04)',
+                        minHeight: 78,
+                        width: '100%',
                       }}
                     >
                       <Image
                         src={`/moodpics/${m.key}.svg`}
                         alt={m.label}
-                        width={44}
-                        height={44}
+                        width={42}
+                        height={42}
                         unoptimized
-                        style={{ objectFit: 'contain' }}
+                        style={{ objectFit: 'contain', width: 'auto', maxHeight: 42 }}
                       />
                       <span
                         style={{
-                          fontSize: 12.5,
+                          fontSize: 12,
                           fontFamily: 'var(--font-display)',
                           fontWeight: isSel ? 600 : 500,
                           color: 'var(--text-brown)',
+                          lineHeight: 1.2,
+                          textAlign: 'center',
                         }}
                       >
                         {m.label}
@@ -1241,6 +1284,78 @@ export default function DiaryPage() {
           </div>
         )}
       </main>
+
+      {/* Mobile Floating Bottom Bar for Students */}
+      <nav
+        className="mobile-bottom-nav"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          background: 'rgba(255, 248, 239, 0.94)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderTop: '1.5px solid var(--card-border)',
+          padding: '8px 12px calc(8px + env(safe-area-inset-bottom, 12px))',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          boxShadow: '0 -4px 20px rgba(91, 74, 63, 0.08)',
+        }}
+      >
+        {(alreadyDone
+          ? [
+              { id: 4, label: 'สรุปวันนี้', icon: '🔥' },
+              { id: 3, label: 'โหลความรู้สึก', icon: '🫙' },
+              { id: 5, label: 'บันทึก', icon: '📖' },
+            ]
+          : [
+              { id: 1, label: 'หน้าแรก', icon: '🏠' },
+              { id: 2, label: 'เช็คอิน', icon: '📝' },
+              { id: 3, label: 'โหลความรู้สึก', icon: '🫙' },
+              { id: 5, label: 'บันทึก', icon: '📖' },
+            ]
+        ).map((t) => {
+          const isActive = activeTab === t.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                sound.playClick()
+                setActiveTab(t.id as 1 | 2 | 3 | 4 | 5)
+              }}
+              style={{
+                border: 'none',
+                background: isActive ? 'var(--text-brown)' : 'transparent',
+                color: isActive ? '#FFF8EF' : 'var(--text-brown-light)',
+                padding: '6px 14px',
+                borderRadius: 99,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                cursor: 'pointer',
+                transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                boxShadow: isActive ? '0 4px 12px rgba(91, 74, 63, 0.2)' : 'none',
+              }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{t.icon}</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: isActive ? 600 : 400,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t.label}
+              </span>
+            </button>
+          )
+        })}
+      </nav>
 
       <style jsx global>{`
         @keyframes pulseGlow {
