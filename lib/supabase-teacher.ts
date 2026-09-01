@@ -1,7 +1,7 @@
 // lib/supabase-teacher.ts - ฟังก์ชันดึงสถิติภาพรวมและนักเรียนกลุ่มเสี่ยง (Real Database 100% ปราศจาก Mock Data)
 import { supabase } from './supabase'
 import { getBangkokDateString, getBangkokDaysAgo } from './date'
-import type { RoomSummary, AtRiskStudent, BehaviorStats, DailyStats } from '../types/database'
+import type { RoomSummary, AtRiskStudent, BehaviorStats, DailyStats, StudentWithStatus } from '../types/database'
 
 // 1. ดึงสถิติภาพรวมวันนี้
 export async function getDailyStats(): Promise<DailyStats> {
@@ -11,7 +11,7 @@ export async function getDailyStats(): Promise<DailyStats> {
   const { count: totalStudents } = await supabase
     .from('profiles')
     .select('id', { count: 'exact', head: true })
-    .eq('role', 'student')
+    .neq('role', 'teacher')
 
   const { count: entriesCount } = await supabase
     .from('diary_entries')
@@ -27,7 +27,7 @@ export async function getDailyStats(): Promise<DailyStats> {
   const { data: atRisk } = await supabase
     .from('profiles')
     .select('id')
-    .eq('role', 'student')
+    .neq('role', 'teacher')
     .or(`last_diary_date.lt.${threeDaysAgo},last_diary_date.is.null`)
 
   return {
@@ -45,7 +45,7 @@ export async function getRoomSummaryToday(): Promise<RoomSummary[]> {
   const { data: students, error: studentErr } = await supabase
     .from('profiles')
     .select('id, room')
-    .eq('role', 'student')
+    .neq('role', 'teacher')
 
   if (studentErr || !students || students.length === 0) {
     return []
@@ -91,7 +91,7 @@ export async function getAtRiskStudents(): Promise<AtRiskStudent[]> {
     const { data: fallback, error: fbErr } = await supabase
       .from('profiles')
       .select('id, student_id, full_name, room, student_number, last_diary_date, streak')
-      .eq('role', 'student')
+      .neq('role', 'teacher')
       .or(`last_diary_date.lt.${threeDaysAgo},last_diary_date.is.null`)
       .order('last_diary_date', { ascending: true, nullsFirst: true })
       .limit(50)
@@ -140,4 +140,46 @@ export async function getBehaviorStats(): Promise<BehaviorStats[]> {
     { label: 'ลดหวาน/น้ำตาล',          pct: pct(data.filter(d => (d.sugar_pts ?? 0) >= 3).length),   color: '#f9a8d4' },
     { label: 'ออกกำลัง 6,000+ ก้าว',    pct: pct(data.filter(d => (d.steps_level ?? 0) >= 3).length), color: '#fb923c' },
   ]
+}
+
+// 5. ดึงรายชื่อนักเรียนทั้งหมดพร้อมสถานะการเข้าสู่ระบบ/ส่งบันทึกวันนี้
+export async function getAllStudentsWithStatus(): Promise<StudentWithStatus[]> {
+  const today = getBangkokDateString()
+
+  // 1. ดึงนักเรียนทั้งหมดจากตาราง profiles (ยกเว้น teacher)
+  const { data: students, error: sErr } = await supabase
+    .from('profiles')
+    .select('id, student_id, full_name, room, student_number, streak, last_diary_date, created_at, role')
+    .neq('role', 'teacher')
+    .order('room', { ascending: true })
+    .order('student_number', { ascending: true, nullsFirst: false })
+
+  if (sErr || !students) {
+    console.error('ดึงรายชื่อนักเรียนไม่สำเร็จ:', sErr)
+    return []
+  }
+
+
+  // 2. ดึงบันทึกไดอารี่ประจำวันของวันนี้
+  const { data: entries } = await supabase
+    .from('diary_entries')
+    .select('user_id, mood, need_counselor')
+    .eq('date', today)
+
+  return students.map((s) => {
+    const todayEntry = entries?.find((e) => e.user_id === s.id)
+    return {
+      id: s.id,
+      student_id: s.student_id,
+      full_name: s.full_name,
+      room: s.room,
+      student_number: s.student_number,
+      streak: s.streak ?? 0,
+      last_diary_date: s.last_diary_date,
+      today_submitted: !!todayEntry || s.last_diary_date === today,
+      today_mood: todayEntry?.mood || null,
+      need_counselor: todayEntry?.need_counselor || false,
+      created_at: s.created_at,
+    }
+  })
 }

@@ -129,6 +129,20 @@ export interface DailyStats {
   atRiskCount: number
 }
 
+export interface StudentWithStatus {
+  id: string
+  student_id?: string | null
+  full_name: string
+  room: string
+  student_number?: number | null
+  streak: number
+  last_diary_date?: string | null
+  today_submitted: boolean
+  today_mood?: string | null
+  need_counselor?: boolean
+  created_at?: string
+}
+
 export interface WeekDayEntry {
   date: string
   entry: {
@@ -136,3 +150,4 @@ export interface WeekDayEntry {
     is_complete?: boolean
   } | null
 }
+

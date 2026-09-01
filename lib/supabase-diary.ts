@@ -1,7 +1,7 @@
 // lib/supabase-diary.ts - ฟังก์ชันจัดการข้อมูลโปรไฟล์และไดอารี่ผ่าน Supabase (Real Database 100%)
 import { supabase } from './supabase'
 import { getBangkokDateString, getBangkokPastDays, getBangkokDaysAgo } from './date'
-import type { DiaryInput, Profile, WeekDayEntry } from '../types/database'
+import type { DiaryInput, Profile, WeekDayEntry, DiaryEntry } from '../types/database'
 
 // ดึงข้อมูลโปรไฟล์ของ User ปัจจุบัน
 export async function getCurrentProfile(userId: string): Promise<Profile | null> {
@@ -192,5 +192,27 @@ export async function addJarNote(userId: string, content: string, mood?: string)
   } catch (err) {
     console.warn('Error adding jar note:', err)
     return null
+  }
+}
+
+// ดึงประวัติการบันทึกไดอารี่สุขภาวะทั้งหมดของ User (เรียงจากล่าสุดไปเก่าสุด)
+export async function getDiaryHistory(userId: string): Promise<DiaryEntry[]> {
+  try {
+    const { data, error } = await supabase
+      .from('diary_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .limit(60)
+
+    if (error) {
+      console.warn('ยังไม่สามารถดึงประวัติไดอารี่ได้:', error.message || error)
+      return []
+    }
+
+    return (data as DiaryEntry[]) ?? []
+  } catch (err) {
+    console.error('Error fetching diary history:', err)
+    return []
   }
 }
