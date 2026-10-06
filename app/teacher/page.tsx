@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { getRoomSummaryToday, getAtRiskStudents, getBehaviorStats, getDailyStats, getAllStudentsWithStatus } from '../../lib/supabase-teacher'
 import type { RoomSummary, AtRiskStudent, BehaviorStats, DailyStats, Profile, StudentWithStatus } from '../../types/database'
 import StudentDetailModal from '../../components/teacher/StudentDetailModal'
+import WeeklyBehaviorAnalytics from '../../components/teacher/WeeklyBehaviorAnalytics'
 
 export default function TeacherDashboard() {
   const router = useRouter()
@@ -782,28 +783,7 @@ export default function TeacherDashboard() {
 
         {/* ================= TAB 2: ภาพรวมสถิติพฤติกรรม 7 วัน ================= */}
         {tab === 'overview' && (
-          <div style={{ background: 'rgba(255, 255, 255, 0.92)', border: '1.5px solid var(--card-border)', borderRadius: 24, padding: 20, animation: 'fadeUp 0.3s ease both', boxShadow: '0 4px 14px rgba(91,74,63,0.05)' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-brown)', marginBottom: 16, fontFamily: 'var(--font-display)' }}>
-              📈 สถิติพฤติกรรมสุขภาพกาย-ใจ 7 วันย้อนหลัง
-            </h3>
-            {behaviors.length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--text-brown-light)', textAlign: 'center', padding: '24px 0' }}>
-                ยังไม่มีข้อมูลบันทึกในรอบ 7 วันที่ผ่านมา
-              </p>
-            ) : (
-              behaviors.map((b, i) => (
-                <div key={i} className="behavior-item" style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                    <span style={{ fontWeight: 500, color: 'var(--text-brown)' }}>{b.label}</span>
-                    <span style={{ fontWeight: 700, color: 'var(--text-brown)', fontFamily: 'var(--font-display)' }}>{b.pct}%</span>
-                  </div>
-                  <div style={{ background: '#EFE4D6', borderRadius: 99, height: 10, overflow: 'hidden' }}>
-                    <div style={{ width: `${b.pct}%`, height: '100%', borderRadius: 99, background: 'var(--text-brown)', transition: 'width 0.6s' }} />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <WeeklyBehaviorAnalytics />
         )}
 
         {/* ================= TAB 3: แจ้งเตือนกลุ่มเสี่ยง ================= */}

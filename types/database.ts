@@ -156,3 +156,53 @@ export interface WeekDayEntry {
   } | null
 }
 
+export interface BehaviorItem {
+  key: string
+  label: string
+  count: number
+  pct: number
+  color: string
+  isLow?: boolean
+}
+
+export interface MoodStatItem {
+  key: string
+  label: string
+  emoji: string
+  type: 'positive' | 'low_energy' | 'distressed'
+  count: number
+  pct: number
+}
+
+export interface ConcernStatItem {
+  concern: string
+  count: number
+  pct: number
+}
+
+export interface WeeklyBehaviorStats {
+  totalEntries: number
+  uniqueStudents: number
+  noConcernCount: number
+  noConcernPct: number
+  behaviors: {
+    body: BehaviorItem[]
+    mind: BehaviorItem[]
+    social: BehaviorItem[]
+  }
+  moodStats: {
+    groups: {
+      positive?: { count: number; pct: number; label: string }
+      low_energy?: { count: number; pct: number; label: string }
+      distressed?: { count: number; pct: number; label: string }
+    }
+    list: MoodStatItem[]
+  }
+  topConcerns: ConcernStatItem[]
+  insights: {
+    strengths: string[]
+    watchouts: string[]
+    recommendations: string[]
+  }
+}
+
