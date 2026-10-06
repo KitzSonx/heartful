@@ -140,8 +140,13 @@ export interface StudentWithStatus {
   today_submitted: boolean
   today_mood?: string | null
   need_counselor?: boolean
+  today_entry?: DiaryEntry | null
+  risk_level?: 'critical' | 'warning' | 'good'
+  risk_reason?: string
+  days_since_last_entry?: number
   created_at?: string
 }
+
 
 export interface WeekDayEntry {
   date: string

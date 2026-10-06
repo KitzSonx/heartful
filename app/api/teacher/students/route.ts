@@ -33,10 +33,10 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch students' }, { status: 500 })
   }
 
-  // ดึงบันทึกวันนี้
+  // ดึงบันทึกวันนี้แบบเต็มทุกฟิลด์
   const { data: entries } = await supabaseAdmin
     .from('diary_entries')
-    .select('user_id, mood, need_counselor')
+    .select('*')
     .eq('date', today)
 
   // สถิติรวม
@@ -65,9 +65,51 @@ export async function GET() {
     .map(([name, v]) => ({ name, ...v }))
     .sort((a, b) => a.name.localeCompare(b.name, 'th'))
 
-  // Map นักเรียนพร้อมสถานะ
+  const todayMs = new Date(today).getTime()
+
+  // Map นักเรียนพร้อมสถานะและระดับความเสี่ยง/คะแนน
   const studentsWithStatus = students.map(s => {
-    const todayEntry = entries?.find(e => e.user_id === s.id)
+    const todayEntry = entries?.find(e => e.user_id === s.id) || null
+    const lastDateMs = s.last_diary_date ? new Date(s.last_diary_date).getTime() : null
+    const daysSince = lastDateMs ? Math.max(0, Math.floor((todayMs - lastDateMs) / (1000 * 60 * 60 * 24))) : 99
+
+    let riskLevel: 'critical' | 'warning' | 'good' = 'good'
+    let riskReason = 'สุขภาวะปกติ'
+
+    const needHelp = todayEntry?.need_counselor
+    const totalPts = todayEntry?.total_pts ?? 0
+
+    if (needHelp) {
+      riskLevel = 'critical'
+      riskReason = '🚨 ขอคุยกับครูแนะแนว'
+    } else if (daysSince >= 3) {
+      riskLevel = 'critical'
+      riskReason = s.last_diary_date ? `⚠️ ขาดบันทึก ${daysSince} วัน` : '⚠️ ยังไม่เคยบันทึก'
+    } else if (todayEntry && totalPts < 12) {
+      riskLevel = 'critical'
+      riskReason = `⚠️ คะแนนรวมต่ำ (${totalPts} คะแนน)`
+    } else if (!todayEntry && daysSince >= 1) {
+      riskLevel = 'warning'
+      riskReason = `ยังไม่บันทึกวันนี้ (ล่าสุด ${daysSince} วันก่อน)`
+    } else if (todayEntry && totalPts < 18) {
+      if ((todayEntry.body_pts ?? 0) <= 6) {
+        riskLevel = 'warning'
+        riskReason = 'ควรดูแลด้านกาย (การนอน/น้ำ/อาหาร)'
+      } else if ((todayEntry.mind_pts ?? 0) <= 3) {
+        riskLevel = 'warning'
+        riskReason = 'ควรเสริมความผ่อนคลาย/อารมณ์'
+      } else if ((todayEntry.social_pts ?? 0) <= 2) {
+        riskLevel = 'warning'
+        riskReason = 'ควรเสริมด้านสัมพันธภาพ'
+      } else {
+        riskLevel = 'warning'
+        riskReason = 'คะแนนระดับปานกลาง'
+      }
+    } else if (todayEntry) {
+      riskLevel = 'good'
+      riskReason = 'สุขภาวะดี บันทึกสม่ำเสมอ'
+    }
+
     return {
       id: s.id,
       student_id: s.student_id,
@@ -79,9 +121,14 @@ export async function GET() {
       today_submitted: !!todayEntry || s.last_diary_date === today,
       today_mood: todayEntry?.mood || null,
       need_counselor: todayEntry?.need_counselor || false,
+      today_entry: todayEntry,
+      risk_level: riskLevel,
+      risk_reason: riskReason,
+      days_since_last_entry: daysSince,
       created_at: s.created_at,
     }
   })
+
 
   return NextResponse.json({
     students: studentsWithStatus,

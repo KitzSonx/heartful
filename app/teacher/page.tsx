@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { supabase } from '../../lib/supabase'
 import { getRoomSummaryToday, getAtRiskStudents, getBehaviorStats, getDailyStats, getAllStudentsWithStatus } from '../../lib/supabase-teacher'
 import type { RoomSummary, AtRiskStudent, BehaviorStats, DailyStats, Profile, StudentWithStatus } from '../../types/database'
+import StudentDetailModal from '../../components/teacher/StudentDetailModal'
 
 export default function TeacherDashboard() {
   const router = useRouter()
@@ -19,6 +20,7 @@ export default function TeacherDashboard() {
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null) // เช่น "4", "5", "6"
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null)  // เช่น "4/1", "4/2"
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [selectedStudentForModal, setSelectedStudentForModal] = useState<StudentWithStatus | null>(null)
 
   const [teacherProfile, setTeacherProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -537,12 +539,12 @@ export default function TeacherDashboard() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, fontFamily: 'var(--font-body)' }}>
                     <thead>
                       <tr style={{ background: 'rgba(239,228,214,0.55)', borderBottom: '1.5px solid var(--card-border)' }}>
-                        {['เลขที่', 'ชื่อ-สกุล', 'รหัสนักเรียน', 'สถานะวันนี้', 'Streak', 'แจ้งเตือน'].map((h, i) => (
+                        {['เลขที่', 'ชื่อ-สกุล', 'สถานะวันนี้', 'คะแนนวันนี้ (รวม / 3 ด้าน)', 'ระดับสุขภาวะ & เฝ้าระวัง', 'การประเมินทักษะ'].map((h, i) => (
                           <th
                             key={i}
                             style={{
                               padding: '10px 14px',
-                              textAlign: i === 0 ? 'center' : 'left',
+                              textAlign: i === 0 ? 'center' : i === 5 ? 'center' : 'left',
                               fontFamily: 'var(--font-display)',
                               fontWeight: 600,
                               fontSize: 12,
@@ -565,7 +567,7 @@ export default function TeacherDashboard() {
                         </tr>
                       ) : (
                         studentsInRoom.map((st, idx) => {
-                          const isAlert = st.need_counselor
+                          const isAlert = st.need_counselor || st.risk_level === 'critical'
                           const rowBg = isAlert
                             ? '#FFF5F5'
                             : idx % 2 === 0
@@ -584,14 +586,36 @@ export default function TeacherDashboard() {
                               <td style={{ padding: '11px 14px', textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-brown)', fontSize: 14 }}>
                                 {st.student_number ?? '—'}
                               </td>
-                              {/* ชื่อ */}
-                              <td style={{ padding: '11px 14px', fontWeight: 600, color: 'var(--text-brown)', whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {st.full_name}
+
+                              {/* ชื่อ-สกุล (คลิกดูรายละเอียดได้) */}
+                              <td style={{ padding: '11px 14px', maxWidth: 220 }}>
+                                <button
+                                  onClick={() => setSelectedStudentForModal(st)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    color: 'var(--text-brown)',
+                                    fontWeight: 600,
+                                    fontFamily: 'inherit',
+                                    fontSize: 13.5,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 2,
+                                  }}
+                                  title="คลิกเพื่อดูรายละเอียดและคะแนนรายข้อ"
+                                >
+                                  <span style={{ textDecoration: 'underline', textDecorationColor: 'rgba(91,74,63,0.35)', textUnderlineOffset: 3 }}>
+                                    {st.full_name}
+                                  </span>
+                                  <span style={{ fontSize: 11, color: 'var(--text-brown-light)', textDecoration: 'none' }}>
+                                    รหัส {st.student_id ?? '—'} · Streak {st.streak > 0 ? `🔥 ${st.streak}` : '0'}
+                                  </span>
+                                </button>
                               </td>
-                              {/* รหัส */}
-                              <td style={{ padding: '11px 14px', color: 'var(--text-brown-light)', fontFamily: 'var(--font-display)', fontSize: 12.5 }}>
-                                {st.student_id ?? '—'}
-                              </td>
+
                               {/* สถานะวันนี้ */}
                               <td style={{ padding: '11px 14px' }}>
                                 {st.today_submitted ? (
@@ -621,7 +645,7 @@ export default function TeacherDashboard() {
                                       display: 'inline-block',
                                       background: '#F5F5F5',
                                       border: '1px solid #DDD',
-                                      color: '#999',
+                                      color: '#888',
                                       fontSize: 12,
                                       padding: '3px 10px',
                                       borderRadius: 99,
@@ -632,33 +656,95 @@ export default function TeacherDashboard() {
                                   </span>
                                 )}
                               </td>
-                              {/* Streak */}
-                              <td style={{ padding: '11px 14px', textAlign: 'center', fontFamily: 'var(--font-display)', fontSize: 13 }}>
-                                <span style={{ color: st.streak > 0 ? '#D96B27' : 'var(--text-brown-light)', fontWeight: st.streak > 0 ? 700 : 400 }}>
-                                  {st.streak > 0 ? `🔥 ${st.streak}` : '—'}
+
+                              {/* คะแนนวันนี้ (รวม / 3 ด้าน) */}
+                              <td style={{ padding: '11px 14px' }}>
+                                {st.today_entry ? (
+                                  <div>
+                                    <div style={{ fontWeight: 700, fontSize: 13.5, color: (st.today_entry.total_pts ?? 0) >= 18 ? '#2d7a4f' : '#D96B27' }}>
+                                      {st.today_entry.total_pts ?? 0}{' '}
+                                      <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-brown-light)' }}>/ 30 คะแนน</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 4, marginTop: 3, fontSize: 10.5 }}>
+                                      <span title="คะแนนดูแลกาย" style={{ color: '#D96B27', background: '#FFF0E5', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
+                                        🏃 {st.today_entry.body_pts ?? 0}
+                                      </span>
+                                      <span title="คะแนนดูแลใจ" style={{ color: '#7C3AED', background: '#F5F3FF', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
+                                        🧠 {st.today_entry.mind_pts ?? 0}
+                                      </span>
+                                      <span title="คะแนนความสัมพันธ์/สังคม" style={{ color: '#0284C7', background: '#F0F9FF', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
+                                        🤝 {st.today_entry.social_pts ?? 0}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: 12, color: 'var(--text-brown-light)' }}>
+                                    {st.last_diary_date ? `ล่าสุด ${st.last_diary_date}` : 'ยังไม่มีบันทึก'}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* ระดับสุขภาวะ & เฝ้าระวัง */}
+                              <td style={{ padding: '11px 14px' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                    fontFamily: 'var(--font-display)',
+                                    padding: '3px 10px',
+                                    borderRadius: 99,
+                                    background:
+                                      st.risk_level === 'critical'
+                                        ? '#FFE5E5'
+                                        : st.risk_level === 'warning'
+                                        ? '#FFF3DC'
+                                        : '#E8F5E9',
+                                    color:
+                                      st.risk_level === 'critical'
+                                        ? '#c0392b'
+                                        : st.risk_level === 'warning'
+                                        ? '#B45309'
+                                        : '#2d7a4f',
+                                    border: `1px solid ${
+                                      st.risk_level === 'critical'
+                                        ? '#FFB3BA'
+                                        : st.risk_level === 'warning'
+                                        ? '#FFD166'
+                                        : '#A3D9A5'
+                                    }`,
+                                    maxWidth: 190,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                  }}
+                                  title={st.risk_reason}
+                                >
+                                  {st.risk_reason || (st.risk_level === 'critical' ? '🔴 ต้องติดตาม' : st.risk_level === 'warning' ? '🟡 ควรระวัง' : '🟢 ปกติ')}
                                 </span>
                               </td>
-                              {/* แจ้งเตือน */}
-                              <td style={{ padding: '11px 14px' }}>
-                                {st.need_counselor ? (
-                                  <span
-                                    style={{
-                                      display: 'inline-block',
-                                      background: '#FFE5E5',
-                                      border: '1px solid #FF9AA2',
-                                      color: '#c0392b',
-                                      fontSize: 11.5,
-                                      fontWeight: 700,
-                                      fontFamily: 'var(--font-display)',
-                                      padding: '3px 10px',
-                                      borderRadius: 99,
-                                    }}
-                                  >
-                                    🚨 ขอคุย
-                                  </span>
-                                ) : (
-                                  <span style={{ color: '#CCC', fontSize: 13 }}>—</span>
-                                )}
+
+                              {/* ปุ่มดูผลประเมิน */}
+                              <td style={{ padding: '11px 14px', textAlign: 'center' }}>
+                                <button
+                                  onClick={() => setSelectedStudentForModal(st)}
+                                  style={{
+                                    padding: '5px 12px',
+                                    borderRadius: 10,
+                                    border: '1.5px solid var(--text-brown)',
+                                    background: 'var(--accent-peach)',
+                                    color: 'var(--text-brown)',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    fontFamily: 'var(--font-display)',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                    transition: 'all 0.15s',
+                                    boxShadow: '0 2px 6px rgba(91,74,63,0.08)',
+                                  }}
+                                >
+                                  🔍 ดูผลประเมิน
+                                </button>
                               </td>
                             </tr>
                           )
@@ -758,24 +844,65 @@ export default function TeacherDashboard() {
                         ห้อง {a.room} {a.student_number ? `· เลขที่ ${a.student_number}` : ''} · {a.last_diary_date ? `ไม่บันทึก ${days} วัน` : 'ยังไม่เคยบันทึก'}
                       </div>
                     </div>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        fontFamily: 'var(--font-display)',
-                        color: isUrgent ? '#c0392b' : '#D96B27',
-                        background: isUrgent ? '#FFE5E5' : '#FFF0E5',
-                        padding: '4px 12px',
-                        borderRadius: 99,
-                      }}
-                    >
-                      {isUrgent ? 'ติดต่อด่วน' : 'ติดตาม'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          fontFamily: 'var(--font-display)',
+                          color: isUrgent ? '#c0392b' : '#D96B27',
+                          background: isUrgent ? '#FFE5E5' : '#FFF0E5',
+                          padding: '4px 12px',
+                          borderRadius: 99,
+                        }}
+                      >
+                        {isUrgent ? 'ติดต่อด่วน' : 'ติดตาม'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const target = students.find((s) => s.id === a.id) || {
+                            id: a.id,
+                            full_name: a.full_name,
+                            room: a.room,
+                            student_number: a.student_number,
+                            student_id: a.student_id,
+                            streak: a.streak ?? 0,
+                            last_diary_date: a.last_diary_date,
+                            today_submitted: false,
+                          }
+                          setSelectedStudentForModal(target as StudentWithStatus)
+                        }}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 8,
+                          border: '1px solid var(--card-border)',
+                          background: '#FFFDF9',
+                          color: 'var(--text-brown)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          fontFamily: 'var(--font-display)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        🔍 ดูประวัติทักษะ
+                      </button>
+                    </div>
                   </div>
+
                 )
               })
             )}
           </div>
+        )}
+
+        {/* Modal แสดงคะแนนรายข้อและการประเมินทักษะสำหรับครูแนะแนว */}
+        {selectedStudentForModal && (
+          <StudentDetailModal
+            studentId={selectedStudentForModal.id}
+            initialProfile={selectedStudentForModal}
+            initialEntry={selectedStudentForModal.today_entry || null}
+            onClose={() => setSelectedStudentForModal(null)}
+          />
         )}
       </main>
     </div>
